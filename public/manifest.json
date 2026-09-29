@@ -1,0 +1,96 @@
+{
+  "id": "/?source=pwa",
+  "name": "Controle de presença BMF4",
+  "short_name": "BMF4 Presença",
+  "description": "Sistema de Chamada, Frequência, Bancadas, Notas e Telão para Bases Morfofuncionais 4 (Medicina)",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui", "browser"],
+  "background_color": "#ffffff",
+  "theme_color": "#0f4c81",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/favicon-32.png",
+      "sizes": "32x32",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/favicon-64.png",
+      "sizes": "64x64",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/app-icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Fazer Chamada",
+      "short_name": "Chamada",
+      "description": "Abrir o painel de chamada rápida com QR Code",
+      "url": "/?tab=chamada",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Modo Telão / Projeção",
+      "short_name": "Telão",
+      "description": "Abrir o modo de projeção para projetores e TVs",
+      "url": "/?tab=telao",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Lançamento de Notas",
+      "short_name": "Notas",
+      "description": "Lançar e calcular notas teóricas e práticas",
+      "url": "/?tab=notas",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Relatórios de Frequência",
+      "short_name": "Relatórios",
+      "description": "Visualizar e exportar relatórios para Excel",
+      "url": "/?tab=relatorios",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    }
+  ],
+  "categories": ["education", "medical", "productivity"],
+  "lang": "pt-BR",
+  "dir": "ltr"
+}

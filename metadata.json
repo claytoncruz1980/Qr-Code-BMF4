@@ -1,0 +1,11 @@
+{
+  "name": "Controle de presença BMF4",
+  "description": "Sistema de Chamada, Frequência, Bancadas, Notas e Telão para Bases Morfofuncionais 4 (Medicina).",
+  "requestFramePermissions": [
+    "camera",
+    "geolocation"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

@@ -1,0 +1,11 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Allow read and write to all app collections for lab operations, professors and student attendance
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}
+

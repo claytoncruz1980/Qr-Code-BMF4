@@ -1,0 +1,205 @@
+{
+  "entities": {
+    "professors": {
+      "title": "Professor",
+      "description": "Registered faculty members for BMF4",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "active": { "type": "boolean" },
+        "course": { "type": "string" },
+        "avatarColor": { "type": "string" },
+        "color": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "name"]
+    },
+    "classes": {
+      "title": "Class Group",
+      "description": "Turmas acadêmicas cadastradas",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "course": { "type": "string" },
+        "period": { "type": "string" },
+        "academicTerm": { "type": "string" },
+        "professorId": { "type": "string" },
+        "schedule": { "type": "string" },
+        "color": { "type": "string" }
+      },
+      "required": ["id", "name"]
+    },
+    "students": {
+      "title": "Student",
+      "description": "Estudantes matriculados",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "registrationNumber": { "type": "string" },
+        "classGroupId": { "type": "string" },
+        "course": { "type": "string" },
+        "email": { "type": "string" },
+        "notes": { "type": "string" }
+      },
+      "required": ["id", "name", "registrationNumber", "classGroupId"]
+    },
+    "sessions": {
+      "title": "Lab Session",
+      "description": "Sessões de chamada e aulas práticas",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "topic": { "type": "string" },
+        "classGroupId": { "type": "string" },
+        "professorId": { "type": "string" },
+        "date": { "type": "string" },
+        "startTime": { "type": "string" },
+        "endTime": { "type": "string" },
+        "status": { "type": "string" },
+        "attendance": { "type": "object" },
+        "period1Locked": { "type": "boolean" },
+        "period2Locked": { "type": "boolean" },
+        "activityCategory": { "type": "string" },
+        "activityType": { "type": "string" },
+        "specimens": { "type": "array" },
+        "notes": { "type": "string" }
+      },
+      "required": ["id", "topic", "classGroupId", "date", "status"]
+    },
+    "justifications": {
+      "title": "Justification Request",
+      "description": "Pedidos de justificativa de falta",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "studentId": { "type": "string" },
+        "sessionId": { "type": "string" },
+        "reason": { "type": "string" },
+        "submittedAt": { "type": "string" },
+        "status": { "type": "string" },
+        "fileUrl": { "type": "string" },
+        "fileName": { "type": "string" },
+        "reviewedBy": { "type": "string" },
+        "reviewedAt": { "type": "string" }
+      },
+      "required": ["id", "studentId", "sessionId", "reason", "submittedAt", "status"]
+    },
+    "student_grades": {
+      "title": "Student Grades Record",
+      "description": "Notas e avaliações dos estudantes",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "studentId": { "type": "string" },
+        "classId": { "type": "string" },
+        "grades": { "type": "object" },
+        "substituteExam": { "type": "number" },
+        "notes": { "type": "string" },
+        "lastUpdated": { "type": "number" }
+      },
+      "required": ["id", "studentId", "classId"]
+    },
+    "app_settings": {
+      "title": "Application Settings",
+      "description": "Configurações gerais do sistema",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "settings": { "type": "object" },
+        "lastUpdated": { "type": "number" }
+      },
+      "required": ["id"]
+    },
+    "sync_state": {
+      "title": "Cloud Master State",
+      "description": "Sincronização global entre dispositivos",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "lastUpdated": { "type": "number" },
+        "payload": { "type": "object" }
+      },
+      "required": ["id", "lastUpdated"]
+    },
+    "outbox": {
+      "title": "Attendance Outbox Queue",
+      "description": "Fila de mensagens para envio resiliente de presenças offline",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "eventType": { "type": "string" },
+        "sessionId": { "type": "string" },
+        "studentId": { "type": "string" },
+        "status": { "type": "string" },
+        "period": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "deviceId": { "type": "string" },
+        "professorId": { "type": "string" },
+        "payload": { "type": "object" },
+        "syncStatus": { "type": "string" },
+        "createdAt": { "type": "number" },
+        "syncedAt": { "type": "number" },
+        "retryCount": { "type": "number" }
+      },
+      "required": ["id", "eventType", "sessionId", "createdAt", "syncStatus"]
+    },
+    "activeSession": {
+      "title": "Active Session Document",
+      "description": "Documento em tempo real com versionamento para sincronização do Telão e chamadas ativas",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "sessionId": { "type": "string" },
+        "classGroupId": { "type": "string" },
+        "version": { "type": "number" },
+        "lastUpdateTimestamp": { "type": "number" },
+        "attendance": { "type": "object" },
+        "activePeriod": { "type": "string" },
+        "isLive": { "type": "boolean" },
+        "isLocked": { "type": "boolean" },
+        "topic": { "type": "string" },
+        "discipline": { "type": "string" },
+        "date": { "type": "string" },
+        "professorId": { "type": "string" },
+        "professorName": { "type": "string" }
+      },
+      "required": ["id", "sessionId", "version", "lastUpdateTimestamp"]
+    }
+  },
+  "firestore": {
+    "/professors/{id}": {
+      "entity": "professors"
+    },
+    "/classes/{id}": {
+      "entity": "classes"
+    },
+    "/students/{id}": {
+      "entity": "students"
+    },
+    "/sessions/{id}": {
+      "entity": "sessions"
+    },
+    "/activeSession/{id}": {
+      "entity": "activeSession"
+    },
+    "/justifications/{id}": {
+      "entity": "justifications"
+    },
+    "/student_grades/{id}": {
+      "entity": "student_grades"
+    },
+    "/app_settings/{id}": {
+      "entity": "app_settings"
+    },
+    "/sync_state/{id}": {
+      "entity": "sync_state"
+    },
+    "/outbox/{id}": {
+      "entity": "outbox"
+    }
+  }
+}
