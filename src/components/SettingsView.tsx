@@ -502,7 +502,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           {/* Sync Action Buttons */}
           <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-slate-100">
             <div className="text-[11px] text-slate-500">
-              A sincronização ocorre automaticamente em tempo real via WebSocket e Firestore.
+              A sincronização ocorre automaticamente em tempo real via WebSocket e Supabase.
             </div>
             <button
               type="button"
@@ -517,13 +517,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
 
         {/* ========================================================================= */}
-        {/* Fila de Mensagens Offline ('Outbox') no Firestore */}
+        {/* Fila de Mensagens Offline ('Outbox') no Supabase */}
         {/* ========================================================================= */}
         <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/90 shadow-xs space-y-5">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
               <UploadCloud className="w-4 h-4 text-amber-600" />
-              Fila de Mensagens Offline ('Outbox') no Firestore
+              Fila de Mensagens Offline ('Outbox') no Supabase
             </h2>
             <div className="flex items-center gap-2">
               {outboxPendingCount > 0 ? (
@@ -541,7 +541,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </div>
 
           <p className="text-xs text-slate-500 leading-relaxed">
-            Garante a tolerância a falhas e sincronização sem perdas: toda marcação de presença, justificativa ou alteração realizada enquanto o dispositivo estiver desconectado é enfileirada no buffer local e gravada automaticamente na coleção <code>outbox</code> do Firestore e no servidor assim que o sinal de internet for restabelecido.
+            Garante a tolerância a falhas e sincronização sem perdas: toda marcação de presença, justificativa ou alteração realizada enquanto o dispositivo estiver desconectado é enfileirada no buffer local e gravada automaticamente na tabela <code>outbox</code> do Supabase e no servidor assim que o sinal de internet for restabelecido.
           </p>
 
           {/* Cards de Status do Outbox */}
@@ -563,7 +563,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <div className="text-xl font-black text-emerald-900 mt-1">
                 {outboxQueue.filter(i => (i.syncStatus || (i as any).status) === 'synced').length}
               </div>
-              <div className="text-[10px] text-emerald-700/80 mt-0.5">Salvos no Firestore</div>
+              <div className="text-[10px] text-emerald-700/80 mt-0.5">Salvos no Supabase</div>
             </div>
 
             <div className="p-3.5 rounded-2xl bg-sky-50/80 border border-sky-200">

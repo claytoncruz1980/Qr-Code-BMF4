@@ -264,7 +264,7 @@ export const LabProjectionScreen: React.FC<LabProjectionScreenProps> = ({
     }
   }, [localEffectiveSession?.version, localEffectiveSession?.lastUpdateTimestamp]);
 
-  // 3. onSnapshot on Firestore 'activeSession' with strict Data Versioning filter
+  // 3. Realtime subscription on Supabase 'activeSession' with strict Data Versioning filter
   // Filtro que apenas aceita atualizações se o 'version' for superior ao atual,
   // garantindo que o estado no telão ignore pacotes de dados desordenados ou defasados da nuvem.
   useEffect(() => {
