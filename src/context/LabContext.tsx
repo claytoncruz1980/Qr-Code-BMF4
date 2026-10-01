@@ -375,31 +375,36 @@ export const mergeClassLists = (
   return sortClassesAlphabetically(filtered);
 };
 
-export const mergeProfessorLists = (currentProfessors: Professor[], incomingProfessors: Professor[]): Professor[] => {
-  if (!Array.isArray(incomingProfessors) || incomingProfessors.length === 0) {
-    return currentProfessors || [];
-  }
+export const mergeProfessorLists = (
+  currentProfessors: Professor[], 
+  incomingProfessors: Professor[],
+  deletedIds: string[] = []
+): Professor[] => {
+  const deletedSet = new Set(deletedIds || []);
   const resultMap = new Map<string, Professor>();
+
   (currentProfessors || []).forEach(p => {
-    if (p && p.id) resultMap.set(p.id, { ...p });
+    if (p && p.id && !deletedSet.has(p.id)) resultMap.set(p.id, { ...p });
   });
 
-  incomingProfessors.forEach(inc => {
-    if (!inc || !inc.id) return;
-    const existing = resultMap.get(inc.id);
-    if (!existing) {
-      resultMap.set(inc.id, { ...inc });
-    } else {
-      resultMap.set(inc.id, {
-        ...existing,
-        ...inc,
-        pin: inc.pin || existing.pin,
-        role: inc.role || existing.role,
-      });
-    }
-  });
+  if (Array.isArray(incomingProfessors)) {
+    incomingProfessors.forEach(inc => {
+      if (!inc || !inc.id || deletedSet.has(inc.id)) return;
+      const existing = resultMap.get(inc.id);
+      if (!existing) {
+        resultMap.set(inc.id, { ...inc });
+      } else {
+        resultMap.set(inc.id, {
+          ...existing,
+          ...inc,
+          pin: inc.pin || existing.pin,
+          role: inc.role || existing.role,
+        });
+      }
+    });
+  }
 
-  return Array.from(resultMap.values());
+  return Array.from(resultMap.values()).filter(p => p && p.id && !deletedSet.has(p.id));
 };
 
 export const mergeJustificationLists = (currentJustifications: JustificationRequest[], incomingJustifications: JustificationRequest[]): JustificationRequest[] => {
@@ -863,16 +868,16 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           ...parsed,
           {
             id: targetTurma === 'turmab' ? BMF4_CLASS_IDS.TURMA_B : targetTurma,
-            name: targetTurma.toLowerCase().includes('b') ? 'Turma B' : 'Turma Nova',
-            code: 'TURMA-B',
+            name: targetTurma,
+            code: targetTurma.toUpperCase(),
             discipline: 'BMF4 - Bases Morfofuncionais 4',
             course: 'Medicina',
             semester: '4º Semestre 2026',
             laboratoryRoom: 'Laboratório de Morfologia / Práticas Médicas',
-            professorName: 'Dra. Carolina Mendes',
-            professorId: 'prof-docente-2',
-            schedule: '13:30 - 18:00',
-            color: '#0d9488',
+            professorName: 'Docente',
+            professorId: 'prof-docente-1',
+            schedule: '07:30 - 12:00',
+            color: '#0284c7',
             totalStudents: 0,
           }
         ];
@@ -1736,7 +1741,7 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const deletedProfSet = new Set(allDeletedProfIds);
       const mergedProfs = (serverState.userMutation 
         ? serverState.professors 
-        : mergeProfessorLists(professorsRef.current, serverState.professors)
+        : mergeProfessorLists(professorsRef.current, serverState.professors, allDeletedProfIds)
       ).filter(p => p && p.id && !deletedProfSet.has(p.id));
       setProfessors(mergedProfs);
       scheduleLocalStorageSave(STORAGE_PREFIX + 'professors', JSON.stringify(mergedProfs));
@@ -5660,7 +5665,7 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (!exists) {
       const baseClass: ClassGroup = {
         id,
-        name: updates.name || (id === BMF4_CLASS_IDS.TURMA_B ? 'Turma B' : id === BMF4_CLASS_IDS.TURMA_A ? 'Turma A' : 'Turma Nova'),
+        name: updates.name || (id === BMF4_CLASS_IDS.TURMA_B ? 'Turma B' : id === BMF4_CLASS_IDS.TURMA_A ? 'Turma A' : id),
         discipline: updates.discipline || 'BMF4 - Bases Morfofuncionais 4',
         code: updates.code || id.toUpperCase().slice(0, 10),
         course: 'Medicina',
