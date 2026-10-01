@@ -17,7 +17,7 @@ steps:
   - name: 'gcr.io/cloud-builders/docker'
     args: ['push', 'southamerica-east1-docker.pkg.dev/$PROJECT_ID/cloudrun--bmf4/app:$COMMIT_SHA']
 
-  # 5. Deploy fluido e otimizado no Cloud Run na região de São Paulo (southamerica-east1)
+  # 5. Deploy otimizado (FinOps: memória reduzida para 256Mi, escala máxima controlada e região regional southamerica-east1)
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     args:
       - 'gcloud'
@@ -31,7 +31,10 @@ steps:
       - '--set-env-vars=NODE_ENV=production,PORT=8080'
       - '--port=8080'
       - '--cpu=1'
-      - '--memory=512Mi'
+      - '--memory=256Mi'
+      - '--min-instances=0'
+      - '--max-instances=2'
+      - '--concurrency=80'
       - '--timeout=300'
 
 images:
