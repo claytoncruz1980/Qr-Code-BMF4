@@ -81,6 +81,18 @@ export const Navbar: React.FC<NavbarProps> = ({
   const minutes = String(time.getMinutes()).padStart(2, '0');
   const seconds = String(time.getSeconds()).padStart(2, '0');
   const formattedTime = `${hours}:${minutes}:${seconds}`;
+  const dateStr = time.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+  const formatClassName = (name: string) => {
+    if (!name) return '';
+    const trimmed = name.trim();
+    if (trimmed.toLowerCase() === 'turma a') return 'Turma A';
+    if (trimmed.toLowerCase() === 'turma b') return 'Turma B';
+    if (trimmed.toLowerCase() === 'turma c') return 'Turma C';
+    if (trimmed.toLowerCase() === 'turma d') return 'Turma D';
+    if (trimmed.toLowerCase() === 'turma e') return 'Turma E';
+    return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+  };
 
   const pendingJustifications = justifications.filter(j => j.status === 'pending').length;
 
@@ -150,11 +162,15 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Center Group: Live Clock Badge + Supabase Realtime Connection Indicator Dot */}
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-            {/* Live Clock Badge (No calendar icon) */}
-            <div className="flex items-center gap-1 px-2 py-1 rounded-xl bg-slate-800/90 border border-slate-700/80 text-[10px] sm:text-xs text-slate-200 shadow-inner shrink-0">
+            {/* Live Clock & Date Badge */}
+            <div className="flex items-center gap-1 sm:gap-1.5 px-2 py-1 rounded-xl bg-slate-800/90 border border-slate-700/80 text-[10px] sm:text-xs text-slate-200 shadow-inner shrink-0">
               <div className="flex items-center gap-1 font-mono font-bold text-teal-300">
                 <Clock className="w-3 h-3 text-teal-400 shrink-0" />
                 <span>{formattedTime}</span>
+              </div>
+              <span className="text-slate-500 font-bold hidden sm:inline">•</span>
+              <div className="hidden sm:flex items-center gap-1 font-medium text-slate-300">
+                <span>{dateStr}</span>
               </div>
             </div>
 
@@ -316,7 +332,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               >
                 {classes.map(cls => (
                   <option key={cls.id} value={cls.id} className="bg-slate-900 text-white font-bold text-xs">
-                    {cls.name}
+                    {formatClassName(cls.name)}
                   </option>
                 ))}
               </select>
@@ -418,7 +434,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             >
               {classes.map(cls => (
                 <option key={cls.id} value={cls.id} className="bg-slate-900 text-white text-xs">
-                  {cls.name}
+                  {formatClassName(cls.name)}
                 </option>
               ))}
             </select>
