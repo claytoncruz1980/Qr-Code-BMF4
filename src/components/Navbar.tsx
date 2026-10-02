@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Tv, 
   FileText, 
@@ -6,7 +6,6 @@ import {
   VolumeX, 
   CheckCircle2, 
   Clock,
-  Calendar,
   UserCheck,
   Award,
   FileCheck,
@@ -17,7 +16,10 @@ import {
   Sliders,
   LogOut,
   KeyRound,
-  LogIn
+  LogIn,
+  Wifi,
+  WifiOff,
+  Database
 } from 'lucide-react';
 import { useLab } from '../context/LabContext';
 import { AppLogo } from './AppLogo';
@@ -60,7 +62,11 @@ export const Navbar: React.FC<NavbarProps> = ({
     justifications,
     activeProfessor,
     logoutProfessor,
-    playBeep
+    playBeep,
+    isOnline,
+    realtimeConnected,
+    isSyncing,
+    outboxPendingCount
   } = useLab();
 
   // Digital clock with seconds updated each second
@@ -76,23 +82,50 @@ export const Navbar: React.FC<NavbarProps> = ({
   const seconds = String(time.getSeconds()).padStart(2, '0');
   const formattedTime = `${hours}:${minutes}:${seconds}`;
 
-  // Formatted date
-  const day = String(time.getDate()).padStart(2, '0');
-  const month = String(time.getMonth() + 1).padStart(2, '0');
-  const year = time.getFullYear();
-  const weekdayShort = time.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '');
-  const capitalizedWeekday = weekdayShort.charAt(0).toUpperCase() + weekdayShort.slice(1);
-
   const pendingJustifications = justifications.filter(j => j.status === 'pending').length;
+
+  // Supabase Realtime Connection Indicator state determination
+  const connectionState = useMemo(() => {
+    if (!isOnline) {
+      return {
+        label: outboxPendingCount > 0 ? `Offline (${outboxPendingCount})` : 'Offline',
+        dotColor: 'bg-rose-500 animate-bounce',
+        badgeBg: 'border-rose-400',
+        title: outboxPendingCount > 0 ? `Dispositivo sem internet. ${outboxPendingCount} marcações pendentes na fila Outbox.` : 'Dispositivo offline.'
+      };
+    }
+    if (isSyncing) {
+      return {
+        label: 'Sincronizando...',
+        dotColor: 'bg-amber-400 animate-spin',
+        badgeBg: 'border-amber-400',
+        title: 'Sincronizando dados em tempo real com o Supabase.'
+      };
+    }
+    if (realtimeConnected) {
+      return {
+        label: 'Supabase Online (Tempo Real)',
+        dotColor: 'bg-emerald-400 animate-pulse',
+        badgeBg: 'border-emerald-400',
+        title: 'Conectado em tempo real com o Supabase e WebSocket.'
+      };
+    }
+    return {
+      label: outboxPendingCount > 0 ? `Supabase Conectado (${outboxPendingCount} pendentes)` : 'Supabase Conectado',
+      dotColor: 'bg-teal-400 animate-pulse',
+      badgeBg: 'border-teal-400',
+      title: 'Conectado ao servidor e banco de dados Supabase.'
+    };
+  }, [isOnline, realtimeConnected, isSyncing, outboxPendingCount]);
 
   return (
     <header className="bg-slate-900 text-white border-b border-slate-800 sticky top-0 z-40 shadow-md backdrop-blur-md">
       <div className="w-full max-w-[1920px] mx-auto px-2 sm:px-4 lg:px-6">
         
         {/* ========================================================================= */}
-        {/* LINE 1: Logo, Modern Date & Clock Pill, System Status & Controls          */}
+        {/* LINE 1: Logo, Live Clock, Connection Dot & Controls                       */}
         {/* ========================================================================= */}
-        <div className="flex items-center justify-between min-h-[38px] sm:min-h-[44px] py-0.5 sm:py-1 gap-1 sm:gap-2 border-b border-slate-800/80">
+        <div className="flex items-center justify-between min-h-[38px] sm:min-h-[44px] py-1 gap-1.5 sm:gap-3 border-b border-slate-800/80">
           
           {/* Left: Modern App Brand */}
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
@@ -115,25 +148,26 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
           </div>
 
-          {/* Center: Modern Date & Live Clock Badge (Visible on Mobile & Desktop) */}
-          <div className="flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-xl bg-slate-800/90 border border-slate-700/80 text-[10px] sm:text-xs text-slate-200 shadow-inner shrink-0">
-            <div className="flex items-center gap-0.5 sm:gap-1 text-slate-300 font-semibold">
-              <Calendar className="w-3 h-3 text-teal-400 shrink-0" />
-              <span>{day}/{month}<span className="hidden lg:inline">/{year}</span></span>
+          {/* Center Group: Live Clock Badge + Supabase Realtime Connection Indicator Dot */}
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            {/* Live Clock Badge (No calendar icon) */}
+            <div className="flex items-center gap-1 px-2 py-1 rounded-xl bg-slate-800/90 border border-slate-700/80 text-[10px] sm:text-xs text-slate-200 shadow-inner shrink-0">
+              <div className="flex items-center gap-1 font-mono font-bold text-teal-300">
+                <Clock className="w-3 h-3 text-teal-400 shrink-0" />
+                <span>{formattedTime}</span>
+              </div>
             </div>
-            <span className="text-slate-600 font-bold">•</span>
-            <div className="flex items-center gap-0.5 sm:gap-1 font-mono font-bold text-teal-300">
-              <Clock className="w-3 h-3 text-teal-400 shrink-0" />
-              <span>{formattedTime}</span>
-            </div>
+
+            {/* Supabase Realtime Connection Indicator (Compact Dot Only with Tooltip) */}
+            <div 
+              className={`w-3 h-3 sm:w-3.5 sm:h-3.5 rounded-full border-2 shadow-sm shrink-0 cursor-help ${connectionState.dotColor} ${connectionState.badgeBg}`}
+              title={connectionState.label}
+            />
           </div>
 
-          {/* Right: Controls (Ajustes, Som - ALWAYS 100% VISIBLE ON MOBILE & DESKTOP) */}
-          <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
-
-
-
-            {/* Ajustes Button (Always visible on mobile, tablet & desktop) */}
+          {/* Right: Controls (Ajustes, Som - Always fully visible) */}
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            {/* Ajustes Button */}
             <button
               id="btn-navbar-ajustes"
               onClick={() => {
@@ -151,7 +185,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span className="hidden md:inline font-bold">Ajustes</span>
             </button>
 
-            {/* Sound Toggle Button (Clean Icon-Only with Pulse Status Indicator) */}
+            {/* Sound Toggle Button */}
             <button
               id="btn-navbar-toggle-som"
               onClick={() => {
@@ -162,7 +196,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               title={soundEnabled ? 'Som Ligado (Clique para silenciar)' : 'Silencioso (Clique para ativar áudio)'}
               className={`h-7 sm:h-8 px-2 sm:px-2.5 rounded-xl transition-all border cursor-pointer shrink-0 shadow-2xs flex items-center justify-center gap-1.5 ${
                 soundEnabled
-                  ? 'bg-teal-950/70 hover:bg-teal-900/80 text-teal-300 border-teal-500/70 ring-1 ring-teal-500/40 shadow-teal-900/20'
+                  ? 'bg-teal-950/70 hover:bg-teal-900/80 text-teal-300 border-teal-500/70 ring-1 ring-teal-500/40'
                   : 'bg-slate-800/90 hover:bg-slate-700/90 text-slate-400 hover:text-slate-200 border-slate-700'
               }`}
             >
@@ -391,24 +425,9 @@ export const Navbar: React.FC<NavbarProps> = ({
             <ChevronDown className="w-3 h-3 text-slate-400 pointer-events-none shrink-0" />
           </div>
 
-          {/* Sair on mobile (Compact) */}
-          {activeProfessor && (
-            <button
-              id="btn-navbar-logout-mobile"
-              onClick={() => logoutProfessor()}
-              title="Sair da conta do docente"
-              className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-lg bg-rose-950/50 border border-rose-800/70 text-rose-300 hover:text-rose-100 hover:bg-rose-900/70 text-[10px] font-bold transition-all cursor-pointer shrink-0 active:scale-95"
-            >
-              <LogOut className="w-3 h-3 text-rose-400" />
-              <span>Sair</span>
-            </button>
-          )}
-
         </div>
 
       </div>
     </header>
   );
 };
-
-

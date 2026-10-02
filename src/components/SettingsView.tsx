@@ -1079,37 +1079,39 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         <div className="pt-4 border-t border-slate-100 space-y-3">
           <div className="text-xs font-bold text-slate-700">Integrações Google Workspace (Calendar & Forms)</div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {onOpenGoogleCalendar && (
-              <button
-                type="button"
-                onClick={onOpenGoogleCalendar}
-                className="p-3.5 rounded-2xl border border-teal-200 bg-teal-50/60 hover:bg-teal-100/70 text-teal-900 transition-all flex items-center gap-3 cursor-pointer group shadow-2xs"
-              >
-                <div className="w-8 h-8 rounded-xl bg-teal-600 text-white flex items-center justify-center shrink-0 shadow-xs group-hover:scale-105 transition-transform">
-                  <Calendar className="w-4 h-4" />
-                </div>
-                <div className="text-left">
-                  <div className="text-xs font-bold text-teal-900">Google Calendar</div>
-                  <div className="text-[11px] text-teal-700">Sincronizar aulas e agenda</div>
-                </div>
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={onOpenGoogleCalendar || (() => {
+                const url = 'https://calendar.google.com/calendar/render?action=TEMPLATE&text=Aula+Pratica+Medicina+BMF4';
+                window.open(url, '_blank');
+              })}
+              className="p-3.5 rounded-2xl border border-teal-200 bg-teal-50/60 hover:bg-teal-100/70 text-teal-900 transition-all flex items-center gap-3 cursor-pointer group shadow-2xs"
+            >
+              <div className="w-8 h-8 rounded-xl bg-teal-600 text-white flex items-center justify-center shrink-0 shadow-xs group-hover:scale-105 transition-transform">
+                <Calendar className="w-4 h-4" />
+              </div>
+              <div className="text-left">
+                <div className="text-xs font-bold text-teal-900">Google Calendar</div>
+                <div className="text-[11px] text-teal-700">Sincronizar aulas e agenda</div>
+              </div>
+            </button>
 
-            {onOpenGoogleForms && (
-              <button
-                type="button"
-                onClick={onOpenGoogleForms}
-                className="p-3.5 rounded-2xl border border-purple-200 bg-purple-50/60 hover:bg-purple-100/70 text-purple-900 transition-all flex items-center gap-3 cursor-pointer group shadow-2xs"
-              >
-                <div className="w-8 h-8 rounded-xl bg-purple-600 text-white flex items-center justify-center shrink-0 shadow-xs group-hover:scale-105 transition-transform">
-                  <FileText className="w-4 h-4" />
-                </div>
-                <div className="text-left">
-                  <div className="text-xs font-bold text-purple-900">Google Forms</div>
-                  <div className="text-[11px] text-purple-700">Criar formulários de presença</div>
-                </div>
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={onOpenGoogleForms || (() => {
+                const url = 'https://forms.google.com';
+                window.open(url, '_blank');
+              })}
+              className="p-3.5 rounded-2xl border border-purple-200 bg-purple-50/60 hover:bg-purple-100/70 text-purple-900 transition-all flex items-center gap-3 cursor-pointer group shadow-2xs"
+            >
+              <div className="w-8 h-8 rounded-xl bg-purple-600 text-white flex items-center justify-center shrink-0 shadow-xs group-hover:scale-105 transition-transform">
+                <FileText className="w-4 h-4" />
+              </div>
+              <div className="text-left">
+                <div className="text-xs font-bold text-purple-900">Google Forms</div>
+                <div className="text-[11px] text-purple-700">Criar formulários de presença</div>
+              </div>
+            </button>
           </div>
         </div>
 
