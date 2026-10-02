@@ -679,9 +679,7 @@ export const useSessionReset = ({
 };
 
 export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => { // 👈 Linha 681 (Abriu a chave)
-
-  // ⬇️ COLE AQUI (Logo abaixo da linha 681, dentro do provedor) ⬇️
+    // ⬇️ COLE AQUI (Logo abaixo da linha 681, dentro do provedor) ⬇️
   useEffect(() => {
     const channel = supabase
       .channel('public:sessions')
@@ -715,7 +713,40 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       supabase.removeChannel(channel);
     };
   }, []);
-  // ⬆️ FIM DO CÓDIGO A SER COLADO ⬆️
+  // // Sincronização inicial completa de dados do Supabase para novos dispositivos
+  useEffect(() => {
+    async function loadAllDataFromSupabase() {
+      try {
+        console.log('🔄 A carregar dados atualizados do Supabase...');
+
+        const { data: sessionsData } = await supabase.from('sessions').select('*');
+        if (sessionsData && sessionsData.length > 0) {
+          setSessions(sessionsData);
+        }
+
+        const { data: classesData } = await supabase.from('classes').select('*');
+        if (classesData && classesData.length > 0) {
+          setClasses(classesData);
+        }
+
+        const { data: studentsData } = await supabase.from('students').select('*');
+        if (studentsData && studentsData.length > 0) {
+          setStudents(studentsData);
+        }
+
+        const { data: teachersData } = await supabase.from('teachers').select('*');
+        if (teachersData && teachersData.length > 0) {
+          setTeachers(teachersData);
+        }
+
+        console.log('✅ Dados atualizados carregados com sucesso do Supabase!');
+      } catch (error) {
+        console.error('Erro ao sincronizar dados iniciais do Supabase:', error);
+      }
+    }
+
+    loadAllDataFromSupabase();
+  }, []);
 
   // O seu código original continua aqui embaixo intacto (Linha 682 em diante):
   // Robust Cache Invalidation & App Version check...
