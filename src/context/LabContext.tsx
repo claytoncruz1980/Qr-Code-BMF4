@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useMemo, useRef, useCallback, ReactNode } from 'react';
 import { doc, onSnapshot, setDoc, getDoc, getDocFromServer, writeBatch } from 'firebase/firestore';
 import { db } from '../lib/firebase';
+import { supabase } from '../lib/supabase';
 import { 
   Student, 
   ClassGroup, 
@@ -1544,6 +1545,15 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
     }
 
+    // 2.5 Supabase Realtime Broadcast Channel
+    try {
+      supabase.channel('bmf4_attendance_realtime').send({
+        type: 'broadcast',
+        event: 'sync_state',
+        payload: enrichedPayload,
+      });
+    } catch {}
+
     // 3. Background HTTP POST sync
     fetch('/api/sync/state', {
       method: 'POST',
@@ -1602,6 +1612,32 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
         console.debug('[Firestore activeSession write notice]:', err?.message || err);
       }
+    }
+
+    // Sync to Supabase Realtime table if online
+    if (navigator.onLine) {
+      try {
+        supabase.from('sessions').upsert({
+          id: session.id,
+          class_group_id: session.classGroupId,
+          version,
+          last_update_timestamp: lastUpdateTimestamp,
+          attendance: session.attendance || {},
+          active_period: session.activePeriod,
+          is_live: session.isLive,
+          is_locked: session.isLocked,
+          topic: session.topic,
+          discipline: session.discipline,
+          date: session.date,
+          professor_id: session.professorId,
+          professor_name: session.professorName,
+          updated_by: clientIdRef.current,
+        }, { onConflict: 'id' }).then(({ error }) => {
+          if (error) {
+            console.debug('Supabase session upsert notice:', error);
+          }
+        });
+      } catch {}
     }
   }, []);
 
@@ -1920,6 +1956,69 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       unsubs.forEach(u => u());
     };
   }, [selectedClassId, applySessionAttendanceFromCloud]);
+
+  // 14. Supabase Realtime Channel Subscription (postgres_changes & broadcast)
+  useEffect(() => {
+    let channel: any = null;
+    try {
+      channel = supabase
+        .channel('bmf4_attendance_realtime')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'sessions' },
+          (payload: any) => {
+            if (payload && payload.new) {
+              const cloudSession = payload.new as any;
+              if (cloudSession && cloudSession.id) {
+                applySessionAttendanceFromCloud({
+                  id: cloudSession.id,
+                  sessionId: cloudSession.id,
+                  classGroupId: cloudSession.class_group_id || cloudSession.classGroupId,
+                  version: cloudSession.version || 1,
+                  lastUpdateTimestamp: cloudSession.last_update_timestamp || cloudSession.lastUpdateTimestamp || Date.now(),
+                  attendance: cloudSession.attendance || {},
+                  activePeriod: cloudSession.active_period || cloudSession.activePeriod,
+                  isLive: cloudSession.is_live ?? cloudSession.isLive,
+                  isLocked: cloudSession.is_locked ?? cloudSession.isLocked,
+                  topic: cloudSession.topic,
+                  discipline: cloudSession.discipline,
+                  date: cloudSession.date,
+                  professorId: cloudSession.professor_id || cloudSession.professorId,
+                  professorName: cloudSession.professor_name || cloudSession.professorName,
+                  activityType: cloudSession.activity_type || cloudSession.activityType,
+                  labLocation: cloudSession.lab_location || cloudSession.labLocation,
+                  checkinCode: cloudSession.checkin_code || cloudSession.checkinCode,
+                  updatedBy: cloudSession.updated_by || 'supabase_realtime',
+                });
+              }
+            }
+          }
+        )
+        .on(
+          'broadcast',
+          { event: 'sync_state' },
+          (payload: any) => {
+            if (payload && payload.payload) {
+              setRealtimeConnected(true);
+              applyServerState(payload.payload);
+            }
+          }
+        )
+        .subscribe((status: string) => {
+          if (status === 'SUBSCRIBED') {
+            setRealtimeConnected(true);
+          }
+        });
+    } catch (err) {
+      console.debug('Supabase realtime subscription notice:', err);
+    }
+
+    return () => {
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
+    };
+  }, [applySessionAttendanceFromCloud, applyServerState]);
 
   // 13. Bulletproof Background HTTP Polling Sync (Every 2.5s)
   useEffect(() => {
