@@ -36,7 +36,9 @@ import {
   Clock3,
   Trash2,
   Calendar,
-  FileText
+  FileText,
+  FileJson,
+  Upload
 } from 'lucide-react';
 import { useLab } from '../context/LabContext';
 import { AntiFraudMode, DeviceType } from '../types';
@@ -81,8 +83,91 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     lastOutboxSyncDate,
     enqueueOutboxItem,
     processOutboxQueue,
-    clearSyncedOutbox
+    clearSyncedOutbox,
+    professors,
+    sessions,
+    justifications,
+    studentGrades,
+    deletedStudentIds,
+    deletedClassIds,
+    deletedProfessorIds,
+    deletedSessionIds
   } = useLab();
+
+  const handleExportBackup = () => {
+    try {
+      const backupData = {
+        version: '2.0',
+        exportDate: new Date().toISOString(),
+        application: 'Medicina BMF4 Presenca',
+        students,
+        classes,
+        professors,
+        sessions,
+        justifications,
+        studentGrades,
+        appSettings,
+        deletedStudentIds,
+        deletedClassIds,
+        deletedProfessorIds,
+        deletedSessionIds
+      };
+
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `bmf4-backup-medicina-${new Date().toISOString().split('T')[0]}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+
+      showFeedback('Backup JSON exportado com sucesso para o seu dispositivo!');
+    } catch (err: any) {
+      playBeep('alert');
+      setFeedbackMessage('Erro ao exportar backup: ' + (err?.message || 'Erro desconhecido'));
+      setTimeout(() => setFeedbackMessage(null), 4000);
+    }
+  };
+
+  const handleImportBackup = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const content = event.target?.result as string;
+        const parsed = JSON.parse(content);
+
+        if (!parsed || (!parsed.students && !parsed.classes && !parsed.professors)) {
+          throw new Error('Arquivo de backup inválido ou corrompido.');
+        }
+
+        if (parsed.students) localStorage.setItem('bmf4_students', JSON.stringify(parsed.students));
+        if (parsed.classes) localStorage.setItem('bmf4_classes', JSON.stringify(parsed.classes));
+        if (parsed.professors) localStorage.setItem('bmf4_professors', JSON.stringify(parsed.professors));
+        if (parsed.sessions) localStorage.setItem('bmf4_sessions', JSON.stringify(parsed.sessions));
+        if (parsed.justifications) localStorage.setItem('bmf4_justifications', JSON.stringify(parsed.justifications));
+        if (parsed.studentGrades) localStorage.setItem('bmf4_student_grades', JSON.stringify(parsed.studentGrades));
+        if (parsed.appSettings) localStorage.setItem('bmf4_settings', JSON.stringify(parsed.appSettings));
+        if (parsed.deletedStudentIds) localStorage.setItem('bmf4_deleted_student_ids', JSON.stringify(parsed.deletedStudentIds));
+        if (parsed.deletedClassIds) localStorage.setItem('bmf4_deleted_class_ids', JSON.stringify(parsed.deletedClassIds));
+        if (parsed.deletedProfessorIds) localStorage.setItem('bmf4_deleted_professor_ids', JSON.stringify(parsed.deletedProfessorIds));
+        if (parsed.deletedSessionIds) localStorage.setItem('bmf4_deleted_session_ids', JSON.stringify(parsed.deletedSessionIds));
+
+        showFeedback('Backup restaurado com sucesso! A página será recarregada.');
+        setTimeout(() => {
+          window.location.reload();
+        }, 1500);
+      } catch (err: any) {
+        playBeep('alert');
+        setFeedbackMessage('Erro ao importar backup: ' + (err?.message || 'Formato JSON inválido'));
+        setTimeout(() => setFeedbackMessage(null), 4000);
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
 
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
@@ -708,6 +793,47 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <RefreshCw className={`w-3.5 h-3.5 ${isOutboxSyncing ? 'animate-spin text-amber-200' : ''}`} />
               <span>{isOutboxSyncing ? 'Sincronizando em Lote...' : 'Processar Fila Outbox Agora'}</span>
             </button>
+          </div>
+        </div>
+
+        {/* ========================================================================= */}
+        {/* Backup Local & Exportação em JSON */}
+        {/* ========================================================================= */}
+        <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/90 shadow-xs space-y-4">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+              <FileJson className="w-4 h-4 text-indigo-600" />
+              Backup Manual e Exportação em JSON
+            </h2>
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+              Segurança Anti-Perda
+            </span>
+          </div>
+
+          <p className="text-xs text-slate-500 leading-relaxed">
+            Exporte todos os dados cadastrados (alunos, turmas, professores, chamadas, notas e histórico) para um arquivo JSON no seu dispositivo. Caso ocorra qualquer falha na sincronização com o Supabase ou perda de dados no navegador, você poderá restaurar o backup instantaneamente.
+          </p>
+
+          <div className="pt-2 flex flex-col sm:flex-row items-center gap-3">
+            <button
+              type="button"
+              onClick={handleExportBackup}
+              className="w-full sm:w-auto px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl flex items-center justify-center gap-2 transition-all active:scale-95 cursor-pointer shadow-xs"
+            >
+              <Download className="w-4 h-4" />
+              <span>Exportar Backup (JSON)</span>
+            </button>
+
+            <label className="w-full sm:w-auto px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl flex items-center justify-center gap-2 transition-all active:scale-95 cursor-pointer border border-slate-300">
+              <Upload className="w-4 h-4 text-slate-600" />
+              <span>Restaurar / Importar Backup JSON</span>
+              <input
+                type="file"
+                accept=".json,application/json"
+                onChange={handleImportBackup}
+                className="hidden"
+              />
+            </label>
           </div>
         </div>
 
