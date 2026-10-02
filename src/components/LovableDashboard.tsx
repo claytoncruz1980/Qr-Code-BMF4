@@ -105,7 +105,8 @@ export const LovableDashboard: React.FC<LovableDashboardProps> = ({
     appSettings,
     justifications,
     submitJustification,
-    playBeep
+    playBeep,
+    sessions
   } = useLab();
 
   // Search and Filter states
@@ -288,6 +289,35 @@ export const LovableDashboard: React.FC<LovableDashboardProps> = ({
 
       {/* Simultaneous Teacher Conflict Alert Banner */}
       <TeacherConflictAlert />
+
+      {/* Live Session in Another Class Banner */}
+      {(() => {
+        const anyOtherLiveSession = sessions.find(s => s && s.isLive && !s.isLocked && s.classGroupId !== selectedClassId);
+        const otherLiveClass = anyOtherLiveSession ? classes.find(c => c.id === anyOtherLiveSession.classGroupId) : null;
+        if (!anyOtherLiveSession || !otherLiveClass) return null;
+        return (
+          <div className="bg-gradient-to-r from-teal-600 via-emerald-600 to-teal-700 text-white rounded-3xl p-4 sm:p-5 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-3 animate-in fade-in border border-teal-400/40">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-white/25 backdrop-blur-xs flex items-center justify-center font-black text-lg shrink-0 shadow-inner">
+                ⚡
+              </div>
+              <div>
+                <h4 className="font-black text-sm sm:text-base text-white">Aula ao Vivo em Andamento na {otherLiveClass.name.toUpperCase()}!</h4>
+                <p className="text-xs text-teal-100 font-medium">Tema: {anyOtherLiveSession.topic || 'Aula Prática'} • Alterne para gerenciar o check-in e a chamada instantaneamente.</p>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                setSelectedClassId(otherLiveClass.id);
+                playBeep('confirm');
+              }}
+              className="w-full sm:w-auto px-5 py-2.5 rounded-2xl bg-white hover:bg-teal-50 text-teal-950 font-black text-xs transition-all active:scale-95 cursor-pointer shadow-lg shrink-0 flex items-center justify-center gap-1.5"
+            >
+              <span>Alternar para {otherLiveClass.name.toUpperCase()}</span>
+            </button>
+          </div>
+        );
+      })()}
 
       {/* Logged Out / Guest Mode Banner */}
       {!activeProfessor && (
