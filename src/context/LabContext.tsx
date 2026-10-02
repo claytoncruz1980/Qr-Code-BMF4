@@ -1880,6 +1880,47 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     };
   }, [applyServerState]);
 
+  // 12. Cloud Firestore Real-time Snapshot Listener for active sessions (Per-class independence & real-time sync)
+  useEffect(() => {
+    let unsubs: (() => void)[] = [];
+    let isCancelled = false;
+
+    try {
+      const currentRef = doc(db, 'activeSession', 'current');
+      const unsubCurrent = onSnapshot(currentRef, (docSnap) => {
+        if (isCancelled) return;
+        if (docSnap.exists()) {
+          const data = docSnap.data() as ActiveSessionDocument;
+          if (data) {
+            applySessionAttendanceFromCloud(data);
+          }
+        }
+      }, () => {});
+      unsubs.push(unsubCurrent);
+
+      if (selectedClassId) {
+        const classRef = doc(db, 'activeSession', selectedClassId);
+        const unsubClass = onSnapshot(classRef, (docSnap) => {
+          if (isCancelled) return;
+          if (docSnap.exists()) {
+            const data = docSnap.data() as ActiveSessionDocument;
+            if (data) {
+              applySessionAttendanceFromCloud(data);
+            }
+          }
+        }, () => {});
+        unsubs.push(unsubClass);
+      }
+    } catch (err) {
+      console.debug('ActiveSession snapshot listener notice:', err);
+    }
+
+    return () => {
+      isCancelled = true;
+      unsubs.forEach(u => u());
+    };
+  }, [selectedClassId, applySessionAttendanceFromCloud]);
+
   // Real-time WebSocket connection with Ping/Pong Keep-Alive
   useEffect(() => {
     let reconnectTimeout: any;
