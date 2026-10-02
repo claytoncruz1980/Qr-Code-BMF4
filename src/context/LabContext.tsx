@@ -1921,6 +1921,35 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     };
   }, [selectedClassId, applySessionAttendanceFromCloud]);
 
+  // 13. Bulletproof Background HTTP Polling Sync (Every 2.5s)
+  useEffect(() => {
+    let isCancelled = false;
+    const pollInterval = setInterval(async () => {
+      if (isCancelled || typeof window === 'undefined' || !navigator.onLine) return;
+      try {
+        const res = await fetch('/api/sync/state', { cache: 'no-store' });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.success && data.state) {
+            const serverTs = Number(data.state.lastUpdated) || 0;
+            const localTs = Number(getLocalLastUpdated()) || 0;
+            if (serverTs > localTs) {
+              setRealtimeConnected(true);
+              applyServerState(data.state);
+            }
+          }
+        }
+      } catch {
+        // Silent background poll catch
+      }
+    }, 2500);
+
+    return () => {
+      isCancelled = true;
+      clearInterval(pollInterval);
+    };
+  }, [applyServerState]);
+
   // Real-time WebSocket connection with Ping/Pong Keep-Alive
   useEffect(() => {
     let reconnectTimeout: any;
