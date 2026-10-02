@@ -338,8 +338,8 @@ export const ClassesManagement: React.FC = () => {
                       </span>
                     </div>
 
-                    <h3 className="font-bold text-slate-900 text-lg leading-snug">
-                      {cls.name}
+                    <h3 className="font-bold text-slate-900 text-lg leading-snug uppercase">
+                      {cls.name.toUpperCase()}
                     </h3>
                     
                     <div className="flex items-center gap-1.5 mt-1 text-xs text-slate-700 font-semibold">

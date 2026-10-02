@@ -1512,16 +1512,9 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       lastUpdated: statePayload.lastUpdated || Date.now(),
     };
 
-    // 1. Cloud Firestore Real-Time Sync with 300ms debounce
-    if (firestoreDebounceRef.current) {
-      clearTimeout(firestoreDebounceRef.current);
-    }
-    firestoreDebounceRef.current = setTimeout(() => {
-      const now = Date.now();
-      if (now < firestoreBlockedUntilRef.current) {
-        return;
-      }
-
+    // 1. Cloud Firestore Real-Time Sync (Instant execution without debounce for maximum speed)
+    const now = Date.now();
+    if (now >= firestoreBlockedUntilRef.current) {
       try {
         const syncDocRef = doc(db, 'sync_state', 'master');
         setDoc(syncDocRef, {
@@ -1537,7 +1530,7 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       } catch {
         // Local offline mode
       }
-    }, 300);
+    }
 
     // 2. WebSocket instant broadcast (0ms delay)
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {

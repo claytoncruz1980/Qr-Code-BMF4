@@ -85,13 +85,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   const formatClassName = (name: string) => {
     if (!name) return '';
-    const trimmed = name.trim();
-    if (trimmed.toLowerCase() === 'turma a') return 'Turma A';
-    if (trimmed.toLowerCase() === 'turma b') return 'Turma B';
-    if (trimmed.toLowerCase() === 'turma c') return 'Turma C';
-    if (trimmed.toLowerCase() === 'turma d') return 'Turma D';
-    if (trimmed.toLowerCase() === 'turma e') return 'Turma E';
-    return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+    return name.trim().toUpperCase();
   };
 
   const pendingJustifications = justifications.filter(j => j.status === 'pending').length;
