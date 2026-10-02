@@ -2892,6 +2892,10 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     const nowTs = Date.now();
     setLocalLastUpdated(nowTs);
+    const targetSess = updatedSessions.find(s => (effectiveTargetId && s.id === effectiveTargetId) || (!effectiveTargetId && s.classGroupId === effectiveClass));
+    if (targetSess) {
+      syncSessionVersionToFirestore(targetSess, (targetSess.version || 0) + 1);
+    }
     broadcastCurrentState({
       professors,
       activeProfessorId,
@@ -2933,6 +2937,10 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     const nowTs = Date.now();
     setLocalLastUpdated(nowTs);
+    const targetSess = updatedSessions.find(s => (effectiveTargetId && s.id === effectiveTargetId) || (!effectiveTargetId && s.classGroupId === effectiveClass));
+    if (targetSess) {
+      syncSessionVersionToFirestore(targetSess, (targetSess.version || 0) + 1);
+    }
     broadcastCurrentState({
       professors,
       activeProfessorId,
@@ -6013,6 +6021,7 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     const nowTimestamp = Date.now();
     setLocalLastUpdated(nowTimestamp);
+    syncSessionVersionToFirestore(newSession, 1);
     broadcastCurrentState({
       professors,
       activeProfessorId: targetProfId || activeProfessorId,
