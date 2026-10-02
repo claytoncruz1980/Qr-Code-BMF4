@@ -679,7 +679,49 @@ export const useSessionReset = ({
 };
 
 export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  // Robust Cache Invalidation & App Version check with 'APP_VERSION_2024_01'
+  export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => { // 👈 Linha 681 (Abriu a chave)
+
+  // ⬇️ COLE AQUI (Logo abaixo da linha 681, dentro do provedor) ⬇️
+  useEffect(() => {
+    const channel = supabase
+      .channel('public:sessions')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'sessions',
+        },
+        (payload) => {
+          console.log('🔄 Sincronização em tempo real recebida:', payload);
+          if (payload.new) {
+            const updatedSession = payload.new as any;
+            setSessions(prevSessions => {
+              const index = prevSessions.findIndex(s => s.id === updatedSession.id);
+              if (index >= 0) {
+                const copy = [...prevSessions];
+                copy[index] = { ...copy[index], ...updatedSession };
+                return copy;
+              } else {
+                return [updatedSession, ...prevSessions];
+              }
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+  // ⬆️ FIM DO CÓDIGO A SER COLADO ⬆️
+
+  // O seu código original continua aqui embaixo intacto (Linha 682 em diante):
+  // Robust Cache Invalidation & App Version check...
+  useEffect(() => {
+    try {
+      // ...// Robust Cache Invalidation & App Version check with 'APP_VERSION_2024_01'
   useEffect(() => {
     try {
       const APP_VERSION_KEY = 'bmf4_app_version';
