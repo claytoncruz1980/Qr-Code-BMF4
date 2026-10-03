@@ -714,22 +714,24 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     };
   }, []);
 
-  // Initial data hydration from Supabase
+  // Initial data hydration from Supabase (Absolute Priority Single Source of Truth)
   useEffect(() => {
     async function loadAllDataFromSupabase() {
       try {
-        console.log('🔄 A carregar dados atualizados do Supabase...');
+        console.log('🔄 A carregar dados com prioridade absoluta do Supabase...');
 
         // 1. Sessions
         try {
           const { data: sessionsData, error: sessErr } = await supabase.from('sessions').select('*');
           if (sessErr) {
             console.debug('Supabase sessions fetch notice:', sessErr.message);
-          } else if (sessionsData) {
-            console.log(`✅ Supabase [sessions]: ${sessionsData.length} registos encontrados.`);
-            if (sessionsData.length > 0) {
-              setSessions(prev => mergeSessionLists(prev, sessionsData, deletedSessionIdsRef.current));
-            }
+          } else if (sessionsData && sessionsData.length > 0) {
+            console.log(`✅ Supabase [sessions]: ${sessionsData.length} registos carregados com prioridade absoluta.`);
+            const reconciled = reconcileSessionsAttendance(sessionsData);
+            setSessions(reconciled);
+            try {
+              localStorage.setItem(STORAGE_PREFIX + 'sessions', JSON.stringify(reconciled));
+            } catch {}
           }
         } catch (e) {
           console.debug('Supabase sessions catch:', e);
@@ -740,11 +742,13 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           const { data: classesData, error: classErr } = await supabase.from('classes').select('*');
           if (classErr) {
             console.debug('Supabase classes fetch notice:', classErr.message);
-          } else if (classesData) {
-            console.log(`✅ Supabase [classes]: ${classesData.length} registos encontrados.`);
-            if (classesData.length > 0) {
-              setClasses(prev => sortClassesAlphabetically(mergeClassLists(prev, classesData, deletedClassIdsRef.current)));
-            }
+          } else if (classesData && classesData.length > 0) {
+            console.log(`✅ Supabase [classes]: ${classesData.length} turmas carregadas com prioridade absoluta.`);
+            const sorted = sortClassesAlphabetically(classesData);
+            setClasses(sorted);
+            try {
+              localStorage.setItem(STORAGE_PREFIX + 'classes', JSON.stringify(sorted));
+            } catch {}
           }
         } catch (e) {
           console.debug('Supabase classes catch:', e);
@@ -755,11 +759,13 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           const { data: studentsData, error: studentErr } = await supabase.from('students').select('*');
           if (studentErr) {
             console.debug('Supabase students fetch notice:', studentErr.message);
-          } else if (studentsData) {
-            console.log(`✅ Supabase [students]: ${studentsData.length} registos encontrados.`);
-            if (studentsData.length > 0) {
-              setStudents(prev => computeStudentsWithRecalculatedStats(mergeStudentLists(prev, studentsData, deletedStudentIdsRef.current), sessionsRef.current));
-            }
+          } else if (studentsData && studentsData.length > 0) {
+            console.log(`✅ Supabase [students]: ${studentsData.length} alunos carregados com prioridade absoluta.`);
+            const computed = computeStudentsWithRecalculatedStats(studentsData, sessionsRef.current);
+            setStudents(computed);
+            try {
+              localStorage.setItem(STORAGE_PREFIX + 'students', JSON.stringify(computed));
+            } catch {}
           }
         } catch (e) {
           console.debug('Supabase students catch:', e);
@@ -770,19 +776,20 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           const { data: teachersData, error: teacherErr } = await supabase.from('teachers').select('*');
           if (teacherErr) {
             console.debug('Supabase teachers fetch notice:', teacherErr.message);
-          } else if (teachersData) {
-            console.log(`✅ Supabase [teachers]: ${teachersData.length} registos encontrados.`);
-            if (teachersData.length > 0) {
-              setProfessors(prev => mergeProfessorLists(prev, teachersData, deletedProfessorIdsRef.current));
-            }
+          } else if (teachersData && teachersData.length > 0) {
+            console.log(`✅ Supabase [teachers]: ${teachersData.length} professores carregados com prioridade absoluta.`);
+            setProfessors(teachersData);
+            try {
+              localStorage.setItem(STORAGE_PREFIX + 'professors', JSON.stringify(teachersData));
+            } catch {}
           }
         } catch (e) {
           console.debug('Supabase teachers catch:', e);
         }
 
-        console.log('✅ Sincronização inicial de dados do Supabase concluída com sucesso!');
+        console.log('✅ Hidratação absoluta do Supabase concluída com sucesso!');
       } catch (error) {
-        console.error('Erro geral ao sincronizar dados iniciais do Supabase:', error);
+        console.error('Erro geral na hidratação do Supabase:', error);
       }
     }
 
@@ -1608,6 +1615,21 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     try {
       localStorage.setItem(STORAGE_PREFIX + 'last_updated', ts.toString());
     } catch {}
+  }, []);
+
+  const syncEntityToSupabase = useCallback(async (table: string, recordOrRecords: any) => {
+    if (!navigator.onLine || !recordOrRecords) return;
+    try {
+      const records = Array.isArray(recordOrRecords) ? recordOrRecords : [recordOrRecords];
+      if (records.length === 0) return;
+      
+      const { error } = await supabase.from(table).upsert(records, { onConflict: 'id' });
+      if (error) {
+        console.debug(`Supabase upsert notice for [${table}]:`, error.message);
+      }
+    } catch (err) {
+      console.debug(`Supabase upsert catch for [${table}]:`, err);
+    }
   }, []);
 
   // Broadcast current state to Cloud Firestore, backend server and other devices
