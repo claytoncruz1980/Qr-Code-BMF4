@@ -7023,11 +7023,22 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     localStorage.removeItem(STORAGE_PREFIX + 'last_updated');
     localStorage.removeItem(STORAGE_PREFIX + 'outbox_queue');
 
-    setProfessors(INITIAL_PROFESSORS);
-    setActiveProfessorId(INITIAL_PROFESSORS[0]?.id || '');
-    setClasses(INITIAL_CLASSES);
-    setStudents(INITIAL_STUDENTS);
-    setSessions(INITIAL_SESSIONS);
+    const blankAdmin: Professor = {
+      id: 'prof-admin-blank',
+      name: 'Administrador (Em Branco)',
+      email: 'admin@bmf4.edu',
+      role: 'admin',
+      pin: '1234',
+      hasChangedPin: false,
+      discipline: 'BMF4',
+      assignedClassIds: [],
+    };
+
+    setProfessors([blankAdmin]);
+    setActiveProfessorId(blankAdmin.id);
+    setClasses([]);
+    setStudents([]);
+    setSessions([]);
     setDeletedSessionIds([]);
     deletedSessionIdsRef.current = [];
     setDeletedProfessorIds([]);
@@ -7036,29 +7047,29 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     deletedStudentIdsRef.current = [];
     setDeletedClassIds([]);
     deletedClassIdsRef.current = [];
-    setJustifications(INITIAL_JUSTIFICATIONS);
+    setJustifications([]);
     setAppSettings(DEFAULT_SETTINGS);
-    setStudentGrades(INITIAL_STUDENT_GRADES);
-    setSelectedClassId(INITIAL_CLASSES[0]?.id || '');
+    setStudentGrades([]);
+    setSelectedClassId('');
 
     const now = Date.now();
     setLocalLastUpdated(now);
     setLastSyncTimestamp(now);
 
     broadcastCurrentState({
-      professors: INITIAL_PROFESSORS,
-      activeProfessorId: INITIAL_PROFESSORS[0]?.id || '',
-      classes: INITIAL_CLASSES,
-      students: INITIAL_STUDENTS,
-      sessions: INITIAL_SESSIONS,
+      professors: [blankAdmin],
+      activeProfessorId: blankAdmin.id,
+      classes: [],
+      students: [],
+      sessions: [],
       deletedSessionIds: [],
       deletedProfessorIds: [],
       deletedStudentIds: [],
       deletedClassIds: [],
-      justifications: INITIAL_JUSTIFICATIONS,
+      justifications: [],
       appSettings: DEFAULT_SETTINGS,
-      studentGrades: INITIAL_STUDENT_GRADES,
-      selectedClassId: INITIAL_CLASSES[0]?.id || '',
+      studentGrades: [],
+      selectedClassId: '',
       lastUpdated: now,
       isExplicitReset: true,
     });
