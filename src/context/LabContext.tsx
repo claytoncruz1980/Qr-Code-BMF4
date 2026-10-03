@@ -679,7 +679,7 @@ export const useSessionReset = ({
 };
 
 export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    // ⬇️ COLE AQUI (Logo abaixo da linha 681, dentro do provedor) ⬇️
+  // Supabase Realtime Subscription for sessions
   useEffect(() => {
     const channel = supabase
       .channel('public:sessions')
@@ -713,7 +713,8 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       supabase.removeChannel(channel);
     };
   }, []);
-  // // Sincronização inicial completa de dados do Supabase para novos dispositivos
+
+  // Initial data hydration from Supabase
   useEffect(() => {
     async function loadAllDataFromSupabase() {
       try {
@@ -736,7 +737,7 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
         const { data: teachersData } = await supabase.from('teachers').select('*');
         if (teachersData && teachersData.length > 0) {
-          setTeachers(teachersData);
+          setProfessors(teachersData);
         }
 
         console.log('✅ Dados atualizados carregados com sucesso do Supabase!');
@@ -748,11 +749,7 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     loadAllDataFromSupabase();
   }, []);
 
-  // O seu código original continua aqui embaixo intacto (Linha 682 em diante):
-  // Robust Cache Invalidation & App Version check...
-  useEffect(() => {
-    try {
-      // ...// Robust Cache Invalidation & App Version check with 'APP_VERSION_2024_01'
+  // Robust Cache Invalidation & App Version check with 'APP_VERSION_2024_01'
   useEffect(() => {
     try {
       const APP_VERSION_KEY = 'bmf4_app_version';
