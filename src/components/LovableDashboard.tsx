@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Users, 
   Tv, 
@@ -127,6 +127,15 @@ export const LovableDashboard: React.FC<LovableDashboardProps> = ({
   const [justifyPeriod, setJustifyPeriod] = useState<ClassPeriod>('both');
   const [justifyAttachmentName, setJustifyAttachmentName] = useState<string>('');
   const [justifyAttachmentUrl, setJustifyAttachmentUrl] = useState<string>('');
+
+  // Synchronize selectedClassId with activeSession classGroupId if active session exists
+  useEffect(() => {
+    if (activeSession?.classGroupId && activeSession.classGroupId !== selectedClassId) {
+      if (classes.some(c => c.id === activeSession.classGroupId)) {
+        setSelectedClassId(activeSession.classGroupId);
+      }
+    }
+  }, [activeSession?.classGroupId, selectedClassId, classes, setSelectedClassId]);
 
   const selectedClass = classes.find(c => c.id === selectedClassId) || classes[0];
 

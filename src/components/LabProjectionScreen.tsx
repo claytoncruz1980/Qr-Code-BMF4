@@ -184,11 +184,11 @@ export const LabProjectionScreen: React.FC<LabProjectionScreenProps> = ({
       if (foundByUrl) return foundByUrl.id;
       return urlTurma;
     }
-    if (selectedClassId && classes.some(c => c.id === selectedClassId)) {
-      return selectedClassId;
-    }
     if (activeSession?.classGroupId && classes.some(c => c.id === activeSession.classGroupId)) {
       return activeSession.classGroupId;
+    }
+    if (selectedClassId && classes.some(c => c.id === selectedClassId)) {
+      return selectedClassId;
     }
     if (classes.length > 0) {
       return classes[0].id;
