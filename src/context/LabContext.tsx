@@ -720,29 +720,69 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       try {
         console.log('🔄 A carregar dados atualizados do Supabase...');
 
-        const { data: sessionsData } = await supabase.from('sessions').select('*');
-        if (sessionsData && sessionsData.length > 0) {
-          setSessions(sessionsData);
+        // 1. Sessions
+        try {
+          const { data: sessionsData, error: sessErr } = await supabase.from('sessions').select('*');
+          if (sessErr) {
+            console.debug('Supabase sessions fetch notice:', sessErr.message);
+          } else if (sessionsData) {
+            console.log(`✅ Supabase [sessions]: ${sessionsData.length} registos encontrados.`);
+            if (sessionsData.length > 0) {
+              setSessions(prev => mergeSessionLists(prev, sessionsData, deletedSessionIdsRef.current));
+            }
+          }
+        } catch (e) {
+          console.debug('Supabase sessions catch:', e);
         }
 
-        const { data: classesData } = await supabase.from('classes').select('*');
-        if (classesData && classesData.length > 0) {
-          setClasses(classesData);
+        // 2. Classes
+        try {
+          const { data: classesData, error: classErr } = await supabase.from('classes').select('*');
+          if (classErr) {
+            console.debug('Supabase classes fetch notice:', classErr.message);
+          } else if (classesData) {
+            console.log(`✅ Supabase [classes]: ${classesData.length} registos encontrados.`);
+            if (classesData.length > 0) {
+              setClasses(prev => sortClassesAlphabetically(mergeClassLists(prev, classesData, deletedClassIdsRef.current)));
+            }
+          }
+        } catch (e) {
+          console.debug('Supabase classes catch:', e);
         }
 
-        const { data: studentsData } = await supabase.from('students').select('*');
-        if (studentsData && studentsData.length > 0) {
-          setStudents(studentsData);
+        // 3. Students
+        try {
+          const { data: studentsData, error: studentErr } = await supabase.from('students').select('*');
+          if (studentErr) {
+            console.debug('Supabase students fetch notice:', studentErr.message);
+          } else if (studentsData) {
+            console.log(`✅ Supabase [students]: ${studentsData.length} registos encontrados.`);
+            if (studentsData.length > 0) {
+              setStudents(prev => computeStudentsWithRecalculatedStats(mergeStudentLists(prev, studentsData, deletedStudentIdsRef.current), sessionsRef.current));
+            }
+          }
+        } catch (e) {
+          console.debug('Supabase students catch:', e);
         }
 
-        const { data: teachersData } = await supabase.from('teachers').select('*');
-        if (teachersData && teachersData.length > 0) {
-          setProfessors(teachersData);
+        // 4. Teachers / Professors
+        try {
+          const { data: teachersData, error: teacherErr } = await supabase.from('teachers').select('*');
+          if (teacherErr) {
+            console.debug('Supabase teachers fetch notice:', teacherErr.message);
+          } else if (teachersData) {
+            console.log(`✅ Supabase [teachers]: ${teachersData.length} registos encontrados.`);
+            if (teachersData.length > 0) {
+              setProfessors(prev => mergeProfessorLists(prev, teachersData, deletedProfessorIdsRef.current));
+            }
+          }
+        } catch (e) {
+          console.debug('Supabase teachers catch:', e);
         }
 
-        console.log('✅ Dados atualizados carregados com sucesso do Supabase!');
+        console.log('✅ Sincronização inicial de dados do Supabase concluída com sucesso!');
       } catch (error) {
-        console.error('Erro ao sincronizar dados iniciais do Supabase:', error);
+        console.error('Erro geral ao sincronizar dados iniciais do Supabase:', error);
       }
     }
 
