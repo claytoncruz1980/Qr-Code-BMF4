@@ -743,11 +743,11 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     };
   }, []);
 
-  // Initial data hydration from Supabase (Absolute Priority Single Source of Truth)
+  // Initial data hydration from Supabase with safe merging to preserve all user data entered in the app
   useEffect(() => {
     async function loadAllDataFromSupabase() {
       try {
-        console.log('🔄 A carregar dados com prioridade absoluta do Supabase...');
+        console.log('🔄 A carregar e mesclar dados do Supabase mantendo o histórico local...');
 
         // 1. Sessions
         try {
@@ -755,12 +755,14 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           if (sessErr) {
             console.debug('Supabase sessions fetch notice:', sessErr.message);
           } else if (sessionsData && sessionsData.length > 0) {
-            console.log(`✅ Supabase [sessions]: ${sessionsData.length} registos carregados com prioridade absoluta.`);
-            const reconciled = reconcileSessionsAttendance(sessionsData);
-            setSessions(reconciled);
-            try {
-              localStorage.setItem(STORAGE_PREFIX + 'sessions', JSON.stringify(reconciled));
-            } catch {}
+            console.log(`✅ Supabase [sessions]: ${sessionsData.length} registos encontrados. Mesclando com dados locais.`);
+            setSessions(prev => {
+              const merged = reconcileSessionsAttendance(mergeSessionLists(prev, sessionsData, deletedSessionIdsRef.current));
+              try {
+                localStorage.setItem(STORAGE_PREFIX + 'sessions', JSON.stringify(merged));
+              } catch {}
+              return merged;
+            });
           }
         } catch (e) {
           console.debug('Supabase sessions catch:', e);
@@ -772,12 +774,14 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           if (classErr) {
             console.debug('Supabase classes fetch notice:', classErr.message);
           } else if (classesData && classesData.length > 0) {
-            console.log(`✅ Supabase [classes]: ${classesData.length} turmas carregadas com prioridade absoluta.`);
-            const sorted = sortClassesAlphabetically(classesData);
-            setClasses(sorted);
-            try {
-              localStorage.setItem(STORAGE_PREFIX + 'classes', JSON.stringify(sorted));
-            } catch {}
+            console.log(`✅ Supabase [classes]: ${classesData.length} turmas encontradas. Mesclando com turmas locais.`);
+            setClasses(prev => {
+              const merged = sortClassesAlphabetically(mergeClassLists(prev, classesData, deletedClassIdsRef.current));
+              try {
+                localStorage.setItem(STORAGE_PREFIX + 'classes', JSON.stringify(merged));
+              } catch {}
+              return merged;
+            });
           }
         } catch (e) {
           console.debug('Supabase classes catch:', e);
@@ -789,12 +793,14 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           if (studentErr) {
             console.debug('Supabase students fetch notice:', studentErr.message);
           } else if (studentsData && studentsData.length > 0) {
-            console.log(`✅ Supabase [students]: ${studentsData.length} alunos carregados com prioridade absoluta.`);
-            const computed = computeStudentsWithRecalculatedStats(studentsData, sessionsRef.current);
-            setStudents(computed);
-            try {
-              localStorage.setItem(STORAGE_PREFIX + 'students', JSON.stringify(computed));
-            } catch {}
+            console.log(`✅ Supabase [students]: ${studentsData.length} alunos encontrados. Mesclando com alunos locais.`);
+            setStudents(prev => {
+              const merged = computeStudentsWithRecalculatedStats(mergeStudentLists(prev, studentsData, deletedStudentIdsRef.current), sessionsRef.current);
+              try {
+                localStorage.setItem(STORAGE_PREFIX + 'students', JSON.stringify(merged));
+              } catch {}
+              return merged;
+            });
           }
         } catch (e) {
           console.debug('Supabase students catch:', e);
@@ -806,19 +812,22 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           if (teacherErr) {
             console.debug('Supabase teachers fetch notice:', teacherErr.message);
           } else if (teachersData && teachersData.length > 0) {
-            console.log(`✅ Supabase [teachers]: ${teachersData.length} professores carregados com prioridade absoluta.`);
-            setProfessors(teachersData);
-            try {
-              localStorage.setItem(STORAGE_PREFIX + 'professors', JSON.stringify(teachersData));
-            } catch {}
+            console.log(`✅ Supabase [teachers]: ${teachersData.length} professores encontrados. Mesclando com docentes locais.`);
+            setProfessors(prev => {
+              const merged = mergeProfessorLists(prev, teachersData, deletedProfessorIdsRef.current);
+              try {
+                localStorage.setItem(STORAGE_PREFIX + 'professors', JSON.stringify(merged));
+              } catch {}
+              return merged;
+            });
           }
         } catch (e) {
           console.debug('Supabase teachers catch:', e);
         }
 
-        console.log('✅ Hidratação absoluta do Supabase concluída com sucesso!');
+        console.log('✅ Sincronização e preservação de dados concluída com sucesso!');
       } catch (error) {
-        console.error('Erro geral na hidratação do Supabase:', error);
+        console.error('Erro ao sincronizar dados do Supabase:', error);
       }
     }
 
