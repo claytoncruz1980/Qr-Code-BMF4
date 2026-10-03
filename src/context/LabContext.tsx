@@ -679,31 +679,60 @@ export const useSessionReset = ({
 };
 
 export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  // Supabase Realtime Subscription for sessions
+  // Supabase Realtime Subscriptions for sessions, classes, students, and teachers
   useEffect(() => {
     const channel = supabase
-      .channel('public:sessions')
+      .channel('public:all-tables')
       .on(
         'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'sessions',
-        },
+        { event: '*', schema: 'public', table: 'sessions' },
         (payload) => {
-          console.log('🔄 Sincronização em tempo real recebida:', payload);
+          console.log('🔄 Supabase Realtime [sessions]:', payload);
           if (payload.new) {
-            const updatedSession = payload.new as any;
-            setSessions(prevSessions => {
-              const index = prevSessions.findIndex(s => s.id === updatedSession.id);
-              if (index >= 0) {
-                const copy = [...prevSessions];
-                copy[index] = { ...copy[index], ...updatedSession };
+            const updated = payload.new as any;
+            setSessions(prev => {
+              const idx = prev.findIndex(s => s.id === updated.id);
+              if (idx >= 0) {
+                const copy = [...prev];
+                copy[idx] = { ...copy[idx], ...updated };
                 return copy;
               } else {
-                return [updatedSession, ...prevSessions];
+                return [updated, ...prev];
               }
             });
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'classes' },
+        (payload) => {
+          console.log('🔄 Supabase Realtime [classes]:', payload);
+          if (payload.new) {
+            const updated = payload.new as any;
+            setClasses(prev => sortClassesAlphabetically(mergeClassLists(prev, [updated], [])));
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'students' },
+        (payload) => {
+          console.log('🔄 Supabase Realtime [students]:', payload);
+          if (payload.new) {
+            const updated = payload.new as any;
+            setStudents(prev => computeStudentsWithRecalculatedStats(mergeStudentLists(prev, [updated], []), sessionsRef.current));
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'teachers' },
+        (payload) => {
+          console.log('🔄 Supabase Realtime [teachers]:', payload);
+          if (payload.new) {
+            const updated = payload.new as any;
+            setProfessors(prev => mergeProfessorLists(prev, [updated], []));
           }
         }
       )
@@ -1825,8 +1854,8 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     const serverTs = Number(serverState.lastUpdated) || 0;
 
-    // Discard if already applied or older, unless explicit reset or forced user mutation
-    if (serverTs > 0 && serverTs <= lastSyncTimestampRef.current && !serverState.isExplicitReset && !serverState.userMutation) {
+    // Discard if significantly older (allowing 15s clock drift tolerance across devices)
+    if (serverTs > 0 && serverTs < lastSyncTimestampRef.current - 15000 && !serverState.isExplicitReset && !serverState.userMutation) {
       return;
     }
 
