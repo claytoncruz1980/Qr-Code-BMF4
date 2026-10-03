@@ -1,0 +1,17 @@
+{
+  "version": 2,
+  "name": "controle-presenca-bmf4",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "framework": "vite",
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/server.ts"
+    },
+    {
+      "source": "/ws",
+      "destination": "/server.ts"
+    }
+  ]
+}
