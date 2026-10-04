@@ -2220,12 +2220,31 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     };
   }, [applySessionAttendanceFromCloud, applyServerState]);
 
-  // 13. Bulletproof Background HTTP Polling Sync (Every 2.5s)
+  // 13. Bulletproof Background Polling Sync (Supabase & API)
   useEffect(() => {
     let isCancelled = false;
     const pollInterval = setInterval(async () => {
       if (isCancelled || typeof window === 'undefined' || !navigator.onLine) return;
       try {
+        // 1. Direct Supabase poll for sessions to ensure cross-device sync between PC and Mobile on Vercel
+        const { data: sessionsData, error } = await supabase.from('sessions').select('*');
+        if (!error && Array.isArray(sessionsData) && sessionsData.length > 0) {
+          const merged = reconcileSessionsAttendance(mergeSessionLists(sessionsRef.current, sessionsData, deletedSessionIdsRef.current));
+          const hasNewer = merged.some((cloudSess: any) => {
+            const localSess = sessionsRef.current.find((s: any) => s.id === cloudSess.id);
+            if (!localSess) return true;
+            return (cloudSess.version || 0) > (localSess.version || 0) || (cloudSess.lastUpdateTimestamp || 0) > (localSess.lastUpdateTimestamp || 0);
+          });
+          if (hasNewer) {
+            setRealtimeConnected(true);
+            setSessions(merged);
+            try {
+              localStorage.setItem(STORAGE_PREFIX + 'sessions', JSON.stringify(merged));
+            } catch {}
+          }
+        }
+
+        // 2. Also try API sync state
         const res = await fetch('/api/sync/state', { cache: 'no-store' });
         if (res.ok) {
           const data = await res.json();
@@ -2241,7 +2260,7 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       } catch {
         // Silent background poll catch
       }
-    }, 2500);
+    }, 3000);
 
     return () => {
       isCancelled = true;
