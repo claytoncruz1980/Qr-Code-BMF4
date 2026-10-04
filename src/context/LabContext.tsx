@@ -1664,18 +1664,48 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     } catch {}
   }, []);
 
+  // Helper to map record properties for Supabase tables (supports both snake_case and camelCase columns)
+  const mapRecordForSupabase = (table: string, rec: any) => {
+    if (!rec) return rec;
+    const copy = { ...rec };
+    if (table === 'classes') {
+      copy.laboratory_room = copy.laboratory_room || copy.laboratoryRoom;
+      copy.total_students = copy.total_students ?? copy.totalStudents;
+      copy.professor_id = copy.professor_id || copy.professorId;
+    } else if (table === 'students') {
+      copy.registration_number = copy.registration_number || copy.registrationNumber;
+      copy.class_group_id = copy.class_group_id || copy.classGroupId;
+      copy.attendance_stats = copy.attendance_stats || copy.attendanceStats;
+    } else if (table === 'teachers') {
+      copy.avatar_url = copy.avatar_url || copy.avatar;
+    } else if (table === 'sessions') {
+      copy.class_group_id = copy.class_group_id || copy.classGroupId;
+      copy.start_time = copy.start_time || copy.startTime;
+      copy.end_time = copy.end_time || copy.endTime;
+      copy.professor_id = copy.professor_id || copy.professorId;
+      copy.professor_name = copy.professor_name || copy.professorName;
+      copy.is_live = copy.is_live ?? copy.isLive;
+      copy.is_locked = copy.is_locked ?? copy.isLocked;
+      copy.active_period = copy.active_period || copy.activePeriod;
+    }
+    return copy;
+  };
+
   const syncEntityToSupabase = useCallback(async (table: string, recordOrRecords: any) => {
     if (!navigator.onLine || !recordOrRecords) return;
     try {
       const records = Array.isArray(recordOrRecords) ? recordOrRecords : [recordOrRecords];
       if (records.length === 0) return;
       
-      const { error } = await supabase.from(table).upsert(records, { onConflict: 'id' });
+      const mappedRecords = records.map(r => mapRecordForSupabase(table, r));
+      const { error } = await supabase.from(table).upsert(mappedRecords, { onConflict: 'id' });
       if (error) {
-        console.debug(`Supabase upsert notice for [${table}]:`, error.message);
+        console.warn(`⚠️ Supabase upsert warning for [${table}]:`, error.message, error.code);
+      } else {
+        console.log(`✅ Supabase upsert success for [${table}]: ${mappedRecords.length} registos`);
       }
-    } catch (err) {
-      console.debug(`Supabase upsert catch for [${table}]:`, err);
+    } catch (err: any) {
+      console.error(`❌ Supabase upsert exception for [${table}]:`, err?.message || err);
     }
   }, []);
 
