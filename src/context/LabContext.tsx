@@ -5225,6 +5225,8 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       localStorage.setItem(STORAGE_PREFIX + 'professors', JSON.stringify(updatedProfs));
     } catch {}
 
+    syncEntityToSupabase('teachers', newProf);
+
     const newActiveId = (!activeProfessorId || professors.length === 0) ? newProf.id : activeProfessorId;
     if (newActiveId !== activeProfessorId) {
       setActiveProfessorId(newActiveId);
