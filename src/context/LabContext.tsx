@@ -927,27 +927,30 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   deletedProfessorIdsRef.current = deletedProfessorIds;
 
   // 1. Professors
+  // 1. Professors
   const [professors, setProfessors] = useState<Professor[]>(() => {
-    const isInit = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_PREFIX + 'app_initialized') === 'true' : false;
-    const saved = localStorage.getItem(STORAGE_PREFIX + 'professors');
-    let parsed: Professor[] = saved ? JSON.parse(saved) : (!isInit ? INITIAL_PROFESSORS : []);
+    let parsed: Professor[] = [];
+    try {
+      const saved = localStorage.getItem(STORAGE_PREFIX + 'professors');
+      const backup = localStorage.getItem('bmf4_master_backup_professors');
+      if (saved) parsed = JSON.parse(saved);
+      if ((!Array.isArray(parsed) || parsed.length === 0) && backup) {
+        parsed = JSON.parse(backup);
+      }
+    } catch {}
+
     if (!Array.isArray(parsed) || parsed.length === 0) {
-      parsed = !isInit ? INITIAL_PROFESSORS : [];
+      parsed = INITIAL_PROFESSORS;
     }
 
-    // Filter out deleted professors
     const savedDeletedProfs = localStorage.getItem(STORAGE_PREFIX + 'deleted_professor_ids');
     const deletedProfList: string[] = savedDeletedProfs ? JSON.parse(savedDeletedProfs) : [];
     const delProfSet = new Set(deletedProfList);
     parsed = (parsed || []).filter(p => p && p.id && !delProfSet.has(p.id));
-    if (parsed.length === 0 && !isInit) {
-      const nonDeletedInitial = INITIAL_PROFESSORS.find(p => !delProfSet.has(p.id));
-      parsed = [nonDeletedInitial || { ...INITIAL_PROFESSORS[0], id: 'prof-admin-default' }];
-    }
     if (parsed.length === 0) {
-      parsed = [{ id: 'prof-admin-default', name: 'Professor Administrador', email: 'admin@bmf4.edu', role: 'admin', pin: '1234', hasChangedPin: false, discipline: 'BMF4', assignedClassIds: [] }];
+      parsed = INITIAL_PROFESSORS;
     }
-    
+
     // Ensure an Administrator exists among current professors
     let adminCandidate = parsed.find(p => p.role === 'admin') || parsed.find(p => p.name.toLowerCase().includes('juliano'));
     if (adminCandidate) {
@@ -958,7 +961,6 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (!parsed[0].pin) parsed[0].pin = '1234';
     }
 
-    // Ensure all professors have a default PIN
     parsed = parsed.map(p => ({
       ...p,
       pin: p.pin || p.password || '1234',
@@ -998,10 +1000,19 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // 2. Classes (ALWAYS initialized and kept sorted alphabetically)
   const [classes, setClasses] = useState<ClassGroup[]>(() => {
-    const isInit = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_PREFIX + 'app_initialized') === 'true' : false;
-    const saved = localStorage.getItem(STORAGE_PREFIX + 'classes');
-    // Keep parsed as is without forcing old BMF4 normalization if user cleared or renamed them
-    let parsed: ClassGroup[] = saved ? JSON.parse(saved) : (!isInit ? INITIAL_CLASSES : []);
+    let parsed: ClassGroup[] = [];
+    try {
+      const saved = localStorage.getItem(STORAGE_PREFIX + 'classes');
+      const backup = localStorage.getItem('bmf4_master_backup_classes');
+      if (saved) parsed = JSON.parse(saved);
+      if ((!Array.isArray(parsed) || parsed.length === 0) && backup) {
+        parsed = JSON.parse(backup);
+      }
+    } catch {}
+
+    if (!Array.isArray(parsed) || parsed.length === 0) {
+      parsed = INITIAL_CLASSES;
+    }
 
     // Deduplicate by ID
     const seenIds = new Set<string>();
@@ -1012,7 +1023,7 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       return true;
     });
     
-    // Check if URL specified a class ID not yet in list (e.g. guest device opening telão or student portal)
+    // Check if URL specified a class ID not yet in list
     if (typeof window !== 'undefined') {
       const urlParams = new URLSearchParams(window.location.search);
       const urlTurma = urlParams.get('turma') || urlParams.get('turmaid') || urlParams.get('class') || urlParams.get('classid');
@@ -1049,18 +1060,8 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const deletedClassList: string[] = savedDeletedClasses ? JSON.parse(savedDeletedClasses) : [];
     const delClassSet = new Set(deletedClassList);
 
-    // Only add INITIAL_CLASSES if brand new installation (not initialized yet), no saved classes, and no deleted classes
-    if (parsed.length === 0 && !isInit && !saved && deletedClassList.length === 0) {
-      INITIAL_CLASSES.forEach(defClass => {
-        if (!delClassSet.has(defClass.id)) {
-          parsed.push(defClass);
-        }
-      });
-    }
-
     const filtered = (parsed || []).filter(c => c && c.id && !delClassSet.has(c.id));
-
-    return sortClassesAlphabetically(filtered);
+    return sortClassesAlphabetically(filtered.length > 0 ? filtered : INITIAL_CLASSES);
   });
 
   // 2.5 Deleted Students tracking
@@ -1077,14 +1078,54 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // 3. Students
   const [students, setStudents] = useState<Student[]>(() => {
-    const isInit = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_PREFIX + 'app_initialized') === 'true' : false;
-    const saved = localStorage.getItem(STORAGE_PREFIX + 'students');
+    let parsed: Student[] = [];
+    try {
+      const saved = localStorage.getItem(STORAGE_PREFIX + 'students');
+      const backup = localStorage.getItem('bmf4_master_backup_students');
+      if (saved) parsed = JSON.parse(saved);
+      if ((!Array.isArray(parsed) || parsed.length === 0) && backup) {
+        parsed = JSON.parse(backup);
+      }
+    } catch {}
+
+    if (!Array.isArray(parsed) || parsed.length === 0) {
+      parsed = INITIAL_STUDENTS;
+    }
+
     const savedDeletedStudents = localStorage.getItem(STORAGE_PREFIX + 'deleted_student_ids');
     const deletedStudentList: string[] = savedDeletedStudents ? JSON.parse(savedDeletedStudents) : [];
     const delStudentSet = new Set(deletedStudentList);
-    let parsed: Student[] = saved ? JSON.parse(saved) : (!isInit ? INITIAL_STUDENTS : []);
-    return (parsed || []).filter(s => s && s.id && !delStudentSet.has(s.id));
+    const filtered = (parsed || []).filter(s => s && s.id && !delStudentSet.has(s.id));
+    return filtered.length > 0 ? filtered : INITIAL_STUDENTS;
   });
+
+  // Automatic Permanent Master Backup Mirroring
+  useEffect(() => {
+    try {
+      if (Array.isArray(classes) && classes.length > 0) {
+        localStorage.setItem(STORAGE_PREFIX + 'classes', JSON.stringify(classes));
+        localStorage.setItem('bmf4_master_backup_classes', JSON.stringify(classes));
+      }
+    } catch {}
+  }, [classes]);
+
+  useEffect(() => {
+    try {
+      if (Array.isArray(students) && students.length > 0) {
+        localStorage.setItem(STORAGE_PREFIX + 'students', JSON.stringify(students));
+        localStorage.setItem('bmf4_master_backup_students', JSON.stringify(students));
+      }
+    } catch {}
+  }, [students]);
+
+  useEffect(() => {
+    try {
+      if (Array.isArray(professors) && professors.length > 0) {
+        localStorage.setItem(STORAGE_PREFIX + 'professors', JSON.stringify(professors));
+        localStorage.setItem('bmf4_master_backup_professors', JSON.stringify(professors));
+      }
+    } catch {}
+  }, [professors]);
 
   // 4. Sessions & Deletion tracking
   const [deletedSessionIds, setDeletedSessionIds] = useState<string[]>(() => {
