@@ -1457,67 +1457,6 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const itemErrorsMap = new Map<string, string>();
 
     try {
-      // 2. ESCRITA EM LOTES (BATCH WRITES) NO FIRESTORE
-      // Agrupa em chunks atômicos de até 100 documentos (limite da API Firestore é 500)
-      if (navigator.onLine && Date.now() > firestoreBlockedUntilRef.current) {
-        const BATCH_SIZE = 100;
-        for (let i = 0; i < pendingItems.length; i += BATCH_SIZE) {
-          const chunk = pendingItems.slice(i, i + BATCH_SIZE);
-          try {
-            const batch = writeBatch(db);
-            chunk.forEach(item => {
-              const outboxDocRef = doc(db, 'outbox', item.id);
-              const sanitizeForFirestore = (val: any): any => {
-                if (val === undefined) return null;
-                if (val === null || typeof val !== 'object') return val;
-                if (Array.isArray(val)) return val.map(sanitizeForFirestore);
-                const sanitized: any = {};
-                for (const k of Object.keys(val)) {
-                  const v = val[k];
-                  if (v !== undefined) {
-                    sanitized[k] = sanitizeForFirestore(v);
-                  }
-                }
-                return sanitized;
-              };
-
-              // Preservação estrita de todas as estruturas e campos da coleção outbox sanitizada contra undefined
-              batch.set(outboxDocRef, sanitizeForFirestore({
-                id: item.id,
-                eventType: item.eventType,
-                sessionId: item.sessionId,
-                studentId: item.studentId || null,
-                studentName: item.studentName || null,
-                classGroupId: item.classGroupId || null,
-                status: item.status || null,
-                period: item.period || null,
-                timestamp: item.timestamp,
-                deviceId: item.deviceId,
-                professorId: item.professorId || null,
-                professorName: item.professorName || null,
-                syncStatus: 'synced',
-                createdAt: item.createdAt,
-                syncedAt: Date.now(),
-                retryCount: item.retryCount || 0,
-                payload: item.payload || null,
-              }), { merge: true });
-            });
-
-            await batch.commit();
-            chunk.forEach(item => firestoreSucceededIds.add(item.id));
-          } catch (batchErr: any) {
-            console.warn('[Outbox] Falha na gravação em lote Firestore:', batchErr?.message || batchErr);
-            if (batchErr?.code === 'resource-exhausted') {
-              firestoreBlockedUntilRef.current = Date.now() + 30 * 1000;
-            }
-            const errMsg = batchErr?.code === 'resource-exhausted'
-              ? 'Limite de cota temporário (Firestore)'
-              : (batchErr?.message || 'Falha no lote Firestore');
-            chunk.forEach(item => itemErrorsMap.set(item.id, errMsg));
-          }
-        }
-      }
-
       // 3. SINCRONIZAÇÃO EM LOTE COM O BACKEND EXPRESS (/api/outbox/process)
       let backendSuccess = false;
       try {
