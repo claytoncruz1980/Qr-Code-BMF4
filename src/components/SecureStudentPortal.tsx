@@ -91,9 +91,12 @@ export const SecureStudentPortal: React.FC<SecureStudentPortalProps> = ({
       const byCode = classes.find(c => c.code && normalizeStr(c.code) === normRaw);
       if (byCode) return byCode;
 
+      const matchingSess = sessions.find(s => s.classGroupId === rawClassParam || s.id === urlSessionId);
+      const friendlyName = matchingSess ? (matchingSess.topic || 'Turma Ativa') : 'Turma BMF4';
+
       return {
         id: rawClassParam,
-        name: rawClassParam,
+        name: friendlyName,
         code: rawClassParam.toUpperCase(),
         discipline: 'BMF4',
         course: 'Medicina' as const,
