@@ -33,6 +33,7 @@ import {
 import QRCode from 'qrcode';
 import { getPublicTelaoUrl, getPublicStudentCheckinUrl } from '../utils/publicUrl';
 import { reconcileSessionsAttendance, getStudentAttendanceRecord } from '../utils/attendanceHelpers';
+import { validateAndSanitizeBatch } from '../utils/supabaseValidator';
 import { 
   INITIAL_CLASSES, 
   INITIAL_STUDENTS, 
@@ -691,14 +692,8 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           if (payload.new) {
             const updated = payload.new as any;
             setSessions(prev => {
-              const idx = prev.findIndex(s => s.id === updated.id);
-              if (idx >= 0) {
-                const copy = [...prev];
-                copy[idx] = { ...copy[idx], ...updated };
-                return copy;
-              } else {
-                return [updated, ...prev];
-              }
+              const merged = mergeSessionLists(prev, [updated], deletedSessionIdsRef.current);
+              return reconcileSessionsAttendance(merged);
             });
           }
         }
@@ -1698,11 +1693,12 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (records.length === 0) return;
       
       const mappedRecords = records.map(r => mapRecordForSupabase(table, r));
-      const { error } = await supabase.from(table).upsert(mappedRecords, { onConflict: 'id' });
+      const sanitizedRecords = validateAndSanitizeBatch(table, mappedRecords);
+      const { error } = await supabase.from(table).upsert(sanitizedRecords, { onConflict: 'id' });
       if (error) {
         console.warn(`⚠️ Supabase upsert warning for [${table}]:`, error.message, error.code);
       } else {
-        console.log(`✅ Supabase upsert success for [${table}]: ${mappedRecords.length} registos`);
+        console.log(`✅ Supabase upsert success for [${table}]: ${sanitizedRecords.length} registos`);
       }
     } catch (err: any) {
       console.error(`❌ Supabase upsert exception for [${table}]:`, err?.message || err);
@@ -5595,6 +5591,8 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       localStorage.setItem(STORAGE_PREFIX + 'students', JSON.stringify(updatedStudents));
     } catch {}
 
+    syncEntityToSupabase('students', newStudent);
+
     const now = Date.now();
     setLocalLastUpdated(now);
     broadcastCurrentState({
@@ -5618,6 +5616,12 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     try {
       localStorage.setItem(STORAGE_PREFIX + 'students', JSON.stringify(updatedStudents));
     } catch {}
+
+    const targetStudent = updatedStudents.find(s => s.id === id);
+    if (targetStudent) {
+      syncEntityToSupabase('students', targetStudent);
+    }
+
     const now = Date.now();
     setLocalLastUpdated(now);
     broadcastCurrentState({
@@ -5977,7 +5981,7 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // CRUD Classes
   const addClassGroup = (classData: Omit<ClassGroup, 'id'> & { id?: string }) => {
-    const classId = classData.id || `class-${Date.now()}`;
+    const classId = String(classData.id || `class-${Date.now()}`);
     const newClass: ClassGroup = {
       ...classData,
       id: classId,
@@ -6005,6 +6009,8 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     try {
       localStorage.setItem(STORAGE_PREFIX + 'classes', JSON.stringify(updatedClasses));
     } catch {}
+
+    syncEntityToSupabase('classes', newClass);
 
     setSelectedClassId(classId);
     try {
