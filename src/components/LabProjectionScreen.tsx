@@ -449,6 +449,13 @@ export const LabProjectionScreen: React.FC<LabProjectionScreenProps> = ({
     return () => clearInterval(interval);
   }, []);
 
+  const currentPeriod: ClassPeriod = (
+    selectedPeriod ||
+    effectiveSession?.activePeriod || 
+    activeSession?.activePeriod || 
+    '1'
+  ) as ClassPeriod;
+
   // Filter present students in real-time for current period
   const presentStudents = useMemo(() => {
     if (!effectiveSession?.attendance) return [];
@@ -456,7 +463,7 @@ export const LabProjectionScreen: React.FC<LabProjectionScreenProps> = ({
     const seenStudentIds = new Set<string>();
     const seenRas = new Set<string>();
     const result: Student[] = [];
-    const activePer = effectiveSession.activePeriod || '1';
+    const activePer = currentPeriod;
 
     const entries = Object.entries(effectiveSession.attendance);
     for (const [key, recVal] of entries) {
@@ -468,6 +475,8 @@ export const LabProjectionScreen: React.FC<LabProjectionScreenProps> = ({
         isPresentForPeriod = rec.period1Status === 'present' || rec.p1StartStatus === 'present' || rec.p1EndStatus === 'present';
       } else if (activePer === '2' || activePer === 'p2_start' || activePer === 'p2_end') {
         isPresentForPeriod = rec.period2Status === 'present' || rec.p2StartStatus === 'present' || rec.p2EndStatus === 'present';
+      } else if (activePer === 'both') {
+        isPresentForPeriod = isRecordPresent(rec) || isRecordLate(rec) || rec.status === 'present' || rec.status === 'late';
       } else {
         isPresentForPeriod = isRecordPresent(rec) || isRecordLate(rec) || rec.status === 'present' || rec.status === 'late';
       }
@@ -508,15 +517,15 @@ export const LabProjectionScreen: React.FC<LabProjectionScreenProps> = ({
     return result.sort((a, b) => {
       const recA = getStudentAttendanceRecord(effectiveSession.attendance, a) as any;
       const recB = getStudentAttendanceRecord(effectiveSession.attendance, b) as any;
-      const timeA = (activePer === '2' || activePer === 'p2_start' || activePer === 'p2_end')
+      const timeA = (activePer === '2' || activePer === 'p2_start' || activePer === 'p2_end' || activePer === 'both')
         ? (recA?.period2Timestamp || recA?.p2StartTimestamp || recA?.timestamp || '00:00')
         : (recA?.period1Timestamp || recA?.p1StartTimestamp || recA?.timestamp || '00:00');
-      const timeB = (activePer === '2' || activePer === 'p2_start' || activePer === 'p2_end')
+      const timeB = (activePer === '2' || activePer === 'p2_start' || activePer === 'p2_end' || activePer === 'both')
         ? (recB?.period2Timestamp || recB?.p2StartTimestamp || recB?.timestamp || '00:00')
         : (recB?.period1Timestamp || recB?.p1StartTimestamp || recB?.timestamp || '00:00');
       return timeB.localeCompare(timeA);
     });
-  }, [effectiveSession?.attendance, students, effectiveClassId]);
+  }, [effectiveSession?.attendance, students, effectiveClassId, currentPeriod]);
 
   const totalStudents = Math.max(classStudents.length, presentStudents.length);
   const presentCount = presentStudents.length;
@@ -581,13 +590,6 @@ export const LabProjectionScreen: React.FC<LabProjectionScreenProps> = ({
       setSelectedPeriod(initialPeriod);
     }
   }, [initialPeriod]);
-
-  const currentPeriod: ClassPeriod = (
-    selectedPeriod ||
-    effectiveSession?.activePeriod || 
-    activeSession?.activePeriod || 
-    '1'
-  ) as ClassPeriod;
 
   useEffect(() => {
     const handleResize = () => setScreenWidth(window.innerWidth);
