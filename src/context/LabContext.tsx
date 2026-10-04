@@ -745,123 +745,92 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       console.log(`🔄 [PWA/App Hydration] Iniciando carga de dados. Online: ${isOnline}`);
 
       try {
+        const localClasses = JSON.parse(localStorage.getItem(STORAGE_PREFIX + 'classes') || '[]');
+        const localStudents = JSON.parse(localStorage.getItem(STORAGE_PREFIX + 'students') || '[]');
+        const localSessions = JSON.parse(localStorage.getItem(STORAGE_PREFIX + 'sessions') || '[]');
+        const localTeachers = JSON.parse(localStorage.getItem(STORAGE_PREFIX + 'professors') || '[]');
+
         // 1. Sessions
         try {
           const { data: sessionsData, error: sessErr } = await supabase.from('sessions').select('*');
           if (sessErr) {
-            console.warn('⚠️ Supabase [sessions] fetch warning:', { message: sessErr.message, code: sessErr.code, details: sessErr.details });
-          } else if (Array.isArray(sessionsData) && sessionsData.length > 0) {
-            console.log(`✅ Supabase [sessions]: ${sessionsData.length} registos obtidos da nuvem.`);
-            setSessions(prev => {
-              const merged = reconcileSessionsAttendance(mergeSessionLists(prev, sessionsData, deletedSessionIdsRef.current));
-              try {
-                localStorage.setItem(STORAGE_PREFIX + 'sessions', JSON.stringify(merged));
-              } catch {}
-              return merged;
-            });
-          } else {
-            console.log('ℹ️ Supabase [sessions]: Tabela vazia. Semeando sessões iniciais.');
-            setSessions(prev => {
-              const seed = prev.length > 0 ? prev : INITIAL_SESSIONS;
-              syncEntityToSupabase('sessions', seed);
-              try {
-                localStorage.setItem(STORAGE_PREFIX + 'sessions', JSON.stringify(seed));
-              } catch {}
-              return seed;
-            });
+            console.warn('⚠️ Supabase [sessions] fetch warning:', sessErr.message);
+          } else if (Array.isArray(sessionsData)) {
+            const combined = sessionsData.length > 0 ? sessionsData : localSessions;
+            const merged = reconcileSessionsAttendance(mergeSessionLists(localSessions.length > 0 ? localSessions : INITIAL_SESSIONS, combined, deletedSessionIdsRef.current));
+            setSessions(merged);
+            try {
+              localStorage.setItem(STORAGE_PREFIX + 'sessions', JSON.stringify(merged));
+            } catch {}
           }
         } catch (e: any) {
-          console.error('❌ Supabase [sessions] exception (PWA offline/permission):', e?.message || e);
+          console.error('❌ Supabase [sessions] exception:', e?.message || e);
         }
 
         // 2. Classes
         try {
           const { data: classesData, error: classErr } = await supabase.from('classes').select('*');
           if (classErr) {
-            console.warn('⚠️ Supabase [classes] fetch warning:', { message: classErr.message, code: classErr.code, details: classErr.details });
-          } else if (Array.isArray(classesData) && classesData.length > 0) {
-            console.log(`✅ Supabase [classes]: ${classesData.length} turmas obtidas da nuvem.`);
-            setClasses(prev => {
-              const merged = sortClassesAlphabetically(mergeClassLists(prev, classesData, deletedClassIdsRef.current));
-              try {
-                localStorage.setItem(STORAGE_PREFIX + 'classes', JSON.stringify(merged));
-              } catch {}
-              return merged;
-            });
-          } else {
-            console.log('ℹ️ Supabase [classes]: Tabela vazia. Semeando turmas iniciais no Supabase e localStorage.');
-            setClasses(prev => {
-              const seed = prev.length > 0 ? prev : INITIAL_CLASSES;
-              syncEntityToSupabase('classes', seed);
-              try {
-                localStorage.setItem(STORAGE_PREFIX + 'classes', JSON.stringify(seed));
-              } catch {}
-              return sortClassesAlphabetically(seed);
-            });
+            console.warn('⚠️ Supabase [classes] fetch warning:', classErr.message);
+          } else if (Array.isArray(classesData)) {
+            const baseLocal = localClasses.length > 0 ? localClasses : INITIAL_CLASSES;
+            const combined = classesData.length > 0 ? classesData : baseLocal;
+            const merged = sortClassesAlphabetically(mergeClassLists(baseLocal, combined, deletedClassIdsRef.current));
+            setClasses(merged);
+            try {
+              localStorage.setItem(STORAGE_PREFIX + 'classes', JSON.stringify(merged));
+            } catch {}
+            if (classesData.length === 0 && merged.length > 0) {
+              syncEntityToSupabase('classes', merged);
+            }
           }
         } catch (e: any) {
-          console.error('❌ Supabase [classes] exception (PWA offline/permission):', e?.message || e);
+          console.error('❌ Supabase [classes] exception:', e?.message || e);
         }
 
         // 3. Students
         try {
           const { data: studentsData, error: studentErr } = await supabase.from('students').select('*');
           if (studentErr) {
-            console.warn('⚠️ Supabase [students] fetch warning:', { message: studentErr.message, code: studentErr.code, details: studentErr.details });
-          } else if (Array.isArray(studentsData) && studentsData.length > 0) {
-            console.log(`✅ Supabase [students]: ${studentsData.length} alunos obtidos da nuvem.`);
-            setStudents(prev => {
-              const merged = computeStudentsWithRecalculatedStats(mergeStudentLists(prev, studentsData, deletedStudentIdsRef.current), sessionsRef.current);
-              try {
-                localStorage.setItem(STORAGE_PREFIX + 'students', JSON.stringify(merged));
-              } catch {}
-              return merged;
-            });
-          } else {
-            console.log('ℹ️ Supabase [students]: Tabela vazia. Semeando alunos iniciais no Supabase e localStorage.');
-            setStudents(prev => {
-              const seed = prev.length > 0 ? prev : INITIAL_STUDENTS;
-              syncEntityToSupabase('students', seed);
-              try {
-                localStorage.setItem(STORAGE_PREFIX + 'students', JSON.stringify(seed));
-              } catch {}
-              return computeStudentsWithRecalculatedStats(seed, sessionsRef.current);
-            });
+            console.warn('⚠️ Supabase [students] fetch warning:', studentErr.message);
+          } else if (Array.isArray(studentsData)) {
+            const baseLocal = localStudents.length > 0 ? localStudents : INITIAL_STUDENTS;
+            const combined = studentsData.length > 0 ? studentsData : baseLocal;
+            const merged = computeStudentsWithRecalculatedStats(mergeStudentLists(baseLocal, combined, deletedStudentIdsRef.current), sessionsRef.current);
+            setStudents(merged);
+            try {
+              localStorage.setItem(STORAGE_PREFIX + 'students', JSON.stringify(merged));
+            } catch {}
+            if (studentsData.length === 0 && merged.length > 0) {
+              syncEntityToSupabase('students', merged);
+            }
           }
         } catch (e: any) {
-          console.error('❌ Supabase [students] exception (PWA offline/permission):', e?.message || e);
+          console.error('❌ Supabase [students] exception:', e?.message || e);
         }
 
         // 4. Teachers / Professors
         try {
           const { data: teachersData, error: teacherErr } = await supabase.from('teachers').select('*');
           if (teacherErr) {
-            console.warn('⚠️ Supabase [teachers] fetch warning:', { message: teacherErr.message, code: teacherErr.code, details: teacherErr.details });
-          } else if (Array.isArray(teachersData) && teachersData.length > 0) {
-            console.log(`✅ Supabase [teachers]: ${teachersData.length} professores obtidos da nuvem.`);
-            setProfessors(prev => {
-              const merged = mergeProfessorLists(prev, teachersData, deletedProfessorIdsRef.current);
-              try {
-                localStorage.setItem(STORAGE_PREFIX + 'professors', JSON.stringify(merged));
-              } catch {}
-              return merged;
-            });
-          } else {
-            console.log('ℹ️ Supabase [teachers]: Tabela vazia. Semeando professores iniciais no Supabase e localStorage.');
-            setProfessors(prev => {
-              const seed = prev.length > 0 ? prev : INITIAL_PROFESSORS;
-              syncEntityToSupabase('teachers', seed);
-              try {
-                localStorage.setItem(STORAGE_PREFIX + 'professors', JSON.stringify(seed));
-              } catch {}
-              return seed;
-            });
+            console.warn('⚠️ Supabase [teachers] fetch warning:', teacherErr.message);
+          } else if (Array.isArray(teachersData)) {
+            const baseLocal = localTeachers.length > 0 ? localTeachers : INITIAL_PROFESSORS;
+            const combined = teachersData.length > 0 ? teachersData : baseLocal;
+            const merged = mergeProfessorLists(baseLocal, combined, deletedProfessorIdsRef.current);
+            setProfessors(merged);
+            try {
+              localStorage.setItem(STORAGE_PREFIX + 'professors', JSON.stringify(merged));
+            } catch {}
+            if (teachersData.length === 0 && merged.length > 0) {
+              syncEntityToSupabase('teachers', merged);
+            }
           }
         } catch (e: any) {
-          console.error('❌ Supabase [teachers] exception (PWA offline/permission):', e?.message || e);
+          console.error('❌ Supabase [teachers] exception:', e?.message || e);
         }
 
-        console.log('✅ [PWA/App Hydration] Processo de carregamento e preservação concluído com sucesso.');
+        console.log('✅ [PWA/App Hydration] Sincronização e fusão concluídas sem perda de dados.');
       } catch (error) {
         console.error('❌ [PWA/App Hydration] Erro crítico geral:', error);
       }
