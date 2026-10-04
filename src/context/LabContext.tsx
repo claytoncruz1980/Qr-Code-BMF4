@@ -760,7 +760,15 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
               return merged;
             });
           } else {
-            console.log('ℹ️ Supabase [sessions]: Nenhum registo retornado ou lista vazia. Mantendo dados locais do localStorage.');
+            console.log('ℹ️ Supabase [sessions]: Tabela vazia. Semeando sessões iniciais.');
+            setSessions(prev => {
+              const seed = prev.length > 0 ? prev : INITIAL_SESSIONS;
+              syncEntityToSupabase('sessions', seed);
+              try {
+                localStorage.setItem(STORAGE_PREFIX + 'sessions', JSON.stringify(seed));
+              } catch {}
+              return seed;
+            });
           }
         } catch (e: any) {
           console.error('❌ Supabase [sessions] exception (PWA offline/permission):', e?.message || e);
@@ -781,7 +789,15 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
               return merged;
             });
           } else {
-            console.log('ℹ️ Supabase [classes]: Nenhum registo retornado ou lista vazia. Mantendo dados locais do localStorage.');
+            console.log('ℹ️ Supabase [classes]: Tabela vazia. Semeando turmas iniciais no Supabase e localStorage.');
+            setClasses(prev => {
+              const seed = prev.length > 0 ? prev : INITIAL_CLASSES;
+              syncEntityToSupabase('classes', seed);
+              try {
+                localStorage.setItem(STORAGE_PREFIX + 'classes', JSON.stringify(seed));
+              } catch {}
+              return sortClassesAlphabetically(seed);
+            });
           }
         } catch (e: any) {
           console.error('❌ Supabase [classes] exception (PWA offline/permission):', e?.message || e);
@@ -802,7 +818,15 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
               return merged;
             });
           } else {
-            console.log('ℹ️ Supabase [students]: Nenhum registo retornado ou lista vazia. Mantendo dados locais do localStorage.');
+            console.log('ℹ️ Supabase [students]: Tabela vazia. Semeando alunos iniciais no Supabase e localStorage.');
+            setStudents(prev => {
+              const seed = prev.length > 0 ? prev : INITIAL_STUDENTS;
+              syncEntityToSupabase('students', seed);
+              try {
+                localStorage.setItem(STORAGE_PREFIX + 'students', JSON.stringify(seed));
+              } catch {}
+              return computeStudentsWithRecalculatedStats(seed, sessionsRef.current);
+            });
           }
         } catch (e: any) {
           console.error('❌ Supabase [students] exception (PWA offline/permission):', e?.message || e);
@@ -823,7 +847,15 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
               return merged;
             });
           } else {
-            console.log('ℹ️ Supabase [teachers]: Nenhum registo retornado ou lista vazia. Mantendo dados locais do localStorage.');
+            console.log('ℹ️ Supabase [teachers]: Tabela vazia. Semeando professores iniciais no Supabase e localStorage.');
+            setProfessors(prev => {
+              const seed = prev.length > 0 ? prev : INITIAL_PROFESSORS;
+              syncEntityToSupabase('teachers', seed);
+              try {
+                localStorage.setItem(STORAGE_PREFIX + 'professors', JSON.stringify(seed));
+              } catch {}
+              return seed;
+            });
           }
         } catch (e: any) {
           console.error('❌ Supabase [teachers] exception (PWA offline/permission):', e?.message || e);
