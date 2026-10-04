@@ -1467,8 +1467,22 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             const batch = writeBatch(db);
             chunk.forEach(item => {
               const outboxDocRef = doc(db, 'outbox', item.id);
-              // Preservação estrita de todas as estruturas e campos da coleção outbox
-              batch.set(outboxDocRef, {
+              const sanitizeForFirestore = (val: any): any => {
+                if (val === undefined) return null;
+                if (val === null || typeof val !== 'object') return val;
+                if (Array.isArray(val)) return val.map(sanitizeForFirestore);
+                const sanitized: any = {};
+                for (const k of Object.keys(val)) {
+                  const v = val[k];
+                  if (v !== undefined) {
+                    sanitized[k] = sanitizeForFirestore(v);
+                  }
+                }
+                return sanitized;
+              };
+
+              // Preservação estrita de todas as estruturas e campos da coleção outbox sanitizada contra undefined
+              batch.set(outboxDocRef, sanitizeForFirestore({
                 id: item.id,
                 eventType: item.eventType,
                 sessionId: item.sessionId,
@@ -1486,7 +1500,7 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 syncedAt: Date.now(),
                 retryCount: item.retryCount || 0,
                 payload: item.payload || null,
-              }, { merge: true });
+              }), { merge: true });
             });
 
             await batch.commit();
