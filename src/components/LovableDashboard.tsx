@@ -118,6 +118,7 @@ export const LovableDashboard: React.FC<LovableDashboardProps> = ({
   const [isTriggeringEmail, setIsTriggeringEmail] = useState(false);
   const [actionSuccessToast, setActionSuccessToast] = useState<string | null>(null);
   const [confirmLockModalOpen, setConfirmLockModalOpen] = useState(false);
+  const [dismissedLiveAlertSessionIds, setDismissedLiveAlertSessionIds] = useState<string[]>([]);
 
   // Quick Justification Modal State
   const [justifyModalStudent, setJustifyModalStudent] = useState<Student | null>(null);
@@ -301,29 +302,60 @@ export const LovableDashboard: React.FC<LovableDashboardProps> = ({
 
       {/* Live Session in Another Class Banner */}
       {(() => {
-        const anyOtherLiveSession = sessions.find(s => s && s.isLive && !s.isLocked && s.classGroupId !== selectedClassId);
+        const anyOtherLiveSession = sessions.find(s => s && s.isLive && !s.isLocked && s.classGroupId !== selectedClassId && !dismissedLiveAlertSessionIds.includes(s.id));
         const otherLiveClass = anyOtherLiveSession ? classes.find(c => c.id === anyOtherLiveSession.classGroupId) : null;
         if (!anyOtherLiveSession || !otherLiveClass) return null;
         return (
-          <div className="bg-gradient-to-r from-teal-600 via-emerald-600 to-teal-700 text-white rounded-3xl p-4 sm:p-5 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-3 animate-in fade-in border border-teal-400/40">
-            <div className="flex items-center gap-3">
+          <div className="relative bg-gradient-to-r from-teal-600 via-emerald-600 to-teal-700 text-white rounded-3xl p-4 sm:p-5 shadow-xl flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3.5 sm:gap-4 animate-in fade-in border border-teal-400/40">
+            {/* Top Right Close 'X' Button */}
+            <button
+              onClick={() => {
+                setDismissedLiveAlertSessionIds(prev => [...prev, anyOtherLiveSession.id]);
+                playBeep('cancel');
+              }}
+              className="absolute top-3 right-3 p-1.5 rounded-full bg-black/20 hover:bg-black/40 text-white/80 hover:text-white transition-all cursor-pointer shadow-xs active:scale-90"
+              title="Fechar aviso"
+              aria-label="Fechar aviso"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="flex items-center gap-3 pr-8 md:pr-0">
               <div className="w-10 h-10 rounded-2xl bg-white/25 backdrop-blur-xs flex items-center justify-center font-black text-lg shrink-0 shadow-inner">
                 ⚡
               </div>
               <div>
                 <h4 className="font-black text-sm sm:text-base text-white">Aula ao Vivo em Andamento na {otherLiveClass.name.toUpperCase()}!</h4>
-                <p className="text-xs text-teal-100 font-medium">Tema: {anyOtherLiveSession.topic || 'Aula Prática'} • Alterne para gerenciar o check-in e a chamada instantaneamente.</p>
+                <p className="text-xs text-teal-100 font-medium">Tema: {anyOtherLiveSession.topic || 'Aula Prática'} • Deseja alternar para gerenciar a chamada?</p>
               </div>
             </div>
-            <button
-              onClick={() => {
-                setSelectedClassId(otherLiveClass.id);
-                playBeep('confirm');
-              }}
-              className="w-full sm:w-auto px-5 py-2.5 rounded-2xl bg-white hover:bg-teal-50 text-teal-950 font-black text-xs transition-all active:scale-95 cursor-pointer shadow-lg shrink-0 flex items-center justify-center gap-1.5"
-            >
-              <span>Alternar para {otherLiveClass.name.toUpperCase()}</span>
-            </button>
+
+            {/* Sim / Não Action Buttons */}
+            <div className="flex items-center gap-2 shrink-0 pt-1 md:pt-0">
+              <button
+                onClick={() => {
+                  setSelectedClassId(otherLiveClass.id);
+                  playBeep('confirm');
+                }}
+                className="flex-1 md:flex-none px-4 py-2 rounded-xl bg-white hover:bg-teal-50 text-teal-950 font-black text-xs transition-all active:scale-95 cursor-pointer shadow-md flex items-center justify-center gap-1.5"
+                title={`Alternar para ${otherLiveClass.name.toUpperCase()}`}
+              >
+                <Check className="w-3.5 h-3.5 text-teal-700" />
+                <span>Sim, alternar</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setDismissedLiveAlertSessionIds(prev => [...prev, anyOtherLiveSession.id]);
+                  playBeep('cancel');
+                }}
+                className="flex-1 md:flex-none px-4 py-2 rounded-xl bg-black/25 hover:bg-black/40 text-white border border-white/25 font-bold text-xs transition-all active:scale-95 cursor-pointer shadow-xs flex items-center justify-center gap-1.5"
+                title="Permanecer nesta turma"
+              >
+                <X className="w-3.5 h-3.5 text-white/80" />
+                <span>Não</span>
+              </button>
+            </div>
           </div>
         );
       })()}

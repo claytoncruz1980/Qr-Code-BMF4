@@ -222,6 +222,22 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </>
               )}
             </button>
+
+            {/* Mobile / Universal Red Logout Button if logged in */}
+            {activeProfessor && (
+              <button
+                id="btn-navbar-logout-mobile"
+                onClick={() => {
+                  logoutProfessor();
+                  playBeep('confirm');
+                }}
+                title={`Sair (${activeProfessor.name})`}
+                className="h-7 sm:h-8 px-2 sm:px-2.5 rounded-xl bg-rose-950/60 hover:bg-rose-900/80 border border-rose-800/80 hover:border-rose-500 text-rose-300 hover:text-rose-100 text-xs font-bold transition-all cursor-pointer shrink-0 shadow-2xs flex items-center justify-center gap-1 active:scale-95"
+              >
+                <LogOut className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+                <span className="hidden xs:inline font-bold">Sair</span>
+              </button>
+            )}
           </div>
         </div>
 
