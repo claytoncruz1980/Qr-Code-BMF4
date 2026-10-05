@@ -217,6 +217,9 @@ interface LabContextType {
   deleteMultipleSessions: (sessionIds: string[]) => void;
   deleteAllSessionsForClass: (classId: string) => void;
   deletedSessionIds: string[];
+  archivedSessions: LabSession[];
+  restoreSession: (sessionId: string) => void;
+  permanentDeleteArchivedSession: (sessionId: string) => void;
   updateSessionAttendance: (
     sessionId: string, 
     studentId: string, 
@@ -1136,6 +1139,68 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   });
   const deletedSessionIdsRef = useRef(deletedSessionIds);
   deletedSessionIdsRef.current = deletedSessionIds;
+
+  const [archivedSessions, setArchivedSessions] = useState<LabSession[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_PREFIX + 'archived_sessions');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const archiveSessionsToTrash = (sessionsToArchive: LabSession[]) => {
+    if (!sessionsToArchive || sessionsToArchive.length === 0) return;
+    setArchivedSessions(prev => {
+      const existingIds = new Set(prev.map(s => s.id));
+      const newlyArchived = sessionsToArchive.filter(s => s && s.id && !existingIds.has(s.id));
+      if (newlyArchived.length === 0) return prev;
+      const next = [...prev, ...newlyArchived];
+      try {
+        localStorage.setItem(STORAGE_PREFIX + 'archived_sessions', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  };
+
+  const restoreSession = (sessionId: string) => {
+    const sessionToRestore = archivedSessions.find(s => s.id === sessionId);
+    if (!sessionToRestore) return;
+
+    const newDeletedIds = deletedSessionIdsRef.current.filter(id => id !== sessionId);
+    setDeletedSessionIds(newDeletedIds);
+    deletedSessionIdsRef.current = newDeletedIds;
+    try {
+      localStorage.setItem(STORAGE_PREFIX + 'deleted_session_ids', JSON.stringify(newDeletedIds));
+    } catch {}
+
+    const newArchived = archivedSessions.filter(s => s.id !== sessionId);
+    setArchivedSessions(newArchived);
+    try {
+      localStorage.setItem(STORAGE_PREFIX + 'archived_sessions', JSON.stringify(newArchived));
+    } catch {}
+
+    if (!sessions.some(s => s.id === sessionId)) {
+      const updatedSessions = [...sessions, sessionToRestore];
+      const updatedStudents = computeStudentsWithRecalculatedStats(students, updatedSessions);
+      setSessions(updatedSessions);
+      setStudents(updatedStudents);
+      try {
+        localStorage.setItem(STORAGE_PREFIX + 'sessions', JSON.stringify(updatedSessions));
+        localStorage.setItem(STORAGE_PREFIX + 'students', JSON.stringify(updatedStudents));
+      } catch {}
+    }
+    playBeep('success');
+  };
+
+  const permanentDeleteArchivedSession = (sessionId: string) => {
+    const newArchived = archivedSessions.filter(s => s.id !== sessionId);
+    setArchivedSessions(newArchived);
+    try {
+      localStorage.setItem(STORAGE_PREFIX + 'archived_sessions', JSON.stringify(newArchived));
+    } catch {}
+    playBeep('delete');
+  };
 
   const [sessions, setSessions] = useState<LabSession[]>(() => {
     const isInit = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_PREFIX + 'app_initialized') === 'true' : false;
@@ -6229,6 +6294,9 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const deleteSession = (sessionId: string) => {
     if (!sessionId) return;
     clearActiveSessionCache();
+    const targetSession = sessions.find(s => s.id === sessionId);
+    if (targetSession) archiveSessionsToTrash([targetSession]);
+
     const newDeletedIds = Array.from(new Set([...deletedSessionIdsRef.current, sessionId]));
     setDeletedSessionIds(newDeletedIds);
     deletedSessionIdsRef.current = newDeletedIds;
@@ -6289,6 +6357,9 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (!Array.isArray(sessionIds) || sessionIds.length === 0) return;
     clearActiveSessionCache();
     const idsSet = new Set(sessionIds);
+    const sessionsToArchive = sessions.filter(s => idsSet.has(s.id));
+    archiveSessionsToTrash(sessionsToArchive);
+
     const newDeletedIds = Array.from(new Set([...deletedSessionIdsRef.current, ...sessionIds]));
     setDeletedSessionIds(newDeletedIds);
     deletedSessionIdsRef.current = newDeletedIds;
@@ -6640,6 +6711,8 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     clearActiveSessionCache();
     const classSessionsToDelete = sessions.filter(s => s.classGroupId === classGroupId);
     if (classSessionsToDelete.length === 0) return;
+    archiveSessionsToTrash(classSessionsToDelete);
+
     const idsToDelete = classSessionsToDelete.map(s => s.id);
     const newDeletedIds = Array.from(new Set([...deletedSessionIdsRef.current, ...idsToDelete]));
     setDeletedSessionIds(newDeletedIds);
@@ -7117,6 +7190,9 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         deleteMultipleSessions,
         deleteAllSessionsForClass,
         deletedSessionIds,
+        archivedSessions,
+        restoreSession,
+        permanentDeleteArchivedSession,
         updateSessionAttendance,
         deleteSessionAttendance,
         resetSessionAttendance,

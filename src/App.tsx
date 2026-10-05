@@ -20,6 +20,7 @@ import { SecureStudentPortal } from './components/SecureStudentPortal';
 import { ProfessorLoginModal } from './components/ProfessorLoginModal';
 import { AuthGateScreen } from './components/AuthGateScreen';
 import { FirstAccessPinModal } from './components/FirstAccessPinModal';
+import { AutoUpdateListener } from './components/AutoUpdateListener';
 
 import { ClassPeriod, getActivityTypeLabel } from './types';
 import { Tv, Sparkles, UserCheck, LayoutGrid, Users, GraduationCap, FileSpreadsheet, Settings, Award, FileCheck, X, Layers, CheckCircle2 } from 'lucide-react';
@@ -296,6 +297,7 @@ function MainApp() {
 
   return (
     <div className="min-h-screen bg-[#f8fafc] text-slate-900 flex flex-col font-sans antialiased selection:bg-sky-500 selection:text-white max-w-full overflow-x-hidden">
+      <AutoUpdateListener />
       
       {/* Universal Top Header with "Controle de presença BMF4", Clock, Date, Online status */}
       <Navbar

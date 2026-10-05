@@ -222,22 +222,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </>
               )}
             </button>
-
-            {/* Mobile / Universal Red Logout Button if logged in */}
-            {activeProfessor && (
-              <button
-                id="btn-navbar-logout-mobile"
-                onClick={() => {
-                  logoutProfessor();
-                  playBeep('confirm');
-                }}
-                title={`Sair (${activeProfessor.name})`}
-                className="h-7 sm:h-8 px-2 sm:px-2.5 rounded-xl bg-rose-950/60 hover:bg-rose-900/80 border border-rose-800/80 hover:border-rose-500 text-rose-300 hover:text-rose-100 text-xs font-bold transition-all cursor-pointer shrink-0 shadow-2xs flex items-center justify-center gap-1 active:scale-95"
-              >
-                <LogOut className="w-3.5 h-3.5 text-rose-400 shrink-0" />
-                <span className="hidden xs:inline font-bold">Sair</span>
-              </button>
-            )}
           </div>
         </div>
 
@@ -398,14 +382,14 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* ========================================================================= */}
         {/* LINE 2 (Mobile Phones): Compact Professor + Turma Selector + Sair         */}
         {/* ========================================================================= */}
-        <div className="md:hidden flex items-center justify-between py-1 gap-1 border-t border-slate-800/50">
+        <div className="md:hidden flex items-center justify-between py-1 gap-1.5 border-t border-slate-800/50">
           
           {/* Active Professor Profile / Login (Mobile Compact) */}
           {activeProfessor ? (
             <button
               onClick={onOpenProfessorLogin}
               title={`Docente: ${activeProfessor.name}. Clique para trocar de login.`}
-              className="flex items-center gap-1 bg-slate-800/95 hover:bg-slate-800 border border-slate-700/80 rounded-lg px-1.5 py-0.5 max-w-[130px] sm:max-w-[160px] text-left transition-all active:scale-95 cursor-pointer shadow-2xs shrink-0"
+              className="flex items-center gap-1 bg-slate-800/95 hover:bg-slate-800 border border-slate-700/80 rounded-lg px-1.5 py-0.5 max-w-[125px] sm:max-w-[150px] text-left transition-all active:scale-95 cursor-pointer shadow-2xs shrink-0"
             >
               <div className="w-4 h-4 rounded-md bg-gradient-to-tr from-teal-600 to-emerald-500 text-white flex items-center justify-center font-bold text-[9px] shadow-xs shrink-0">
                 {activeProfessor.name.charAt(0).toUpperCase()}
@@ -414,7 +398,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <span className="text-[6.5px] uppercase tracking-wider font-black text-teal-400">
                   Professor
                 </span>
-                <span className="font-bold text-white text-[10px] truncate max-w-[85px] sm:max-w-[110px]">
+                <span className="font-bold text-white text-[10px] truncate max-w-[80px] sm:max-w-[105px]">
                   {activeProfessor.name.split(' ')[0]} {activeProfessor.name.split(' ')[1] || ''}
                 </span>
               </div>
@@ -430,7 +414,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           )}
 
           {/* Turma Selector (Compact Dropdown Menu on Mobile) */}
-          <div className="flex items-center gap-1 bg-slate-800/95 border border-slate-700/80 rounded-lg px-1.5 py-0.5 flex-1 min-w-0 max-w-[180px] shadow-2xs">
+          <div className="flex items-center gap-1 bg-slate-800/95 border border-slate-700/80 rounded-lg px-1.5 py-0.5 flex-1 min-w-0 shadow-2xs">
             <GraduationCap className="w-3 h-3 text-teal-400 shrink-0" />
             <select
               id="select-class-mobile-header"
@@ -451,6 +435,21 @@ export const Navbar: React.FC<NavbarProps> = ({
             <ChevronDown className="w-3 h-3 text-slate-400 pointer-events-none shrink-0" />
           </div>
 
+          {/* Red Sair button on Mobile Line 2 when logged in */}
+          {activeProfessor && (
+            <button
+              id="btn-navbar-logout-mobile"
+              onClick={() => {
+                logoutProfessor();
+                playBeep('confirm');
+              }}
+              title="Sair (Encerrar sessão do docente)"
+              className="flex items-center gap-1 bg-rose-950/80 hover:bg-rose-900 border border-rose-800/80 text-rose-300 hover:text-white rounded-lg px-2 py-1 text-[10.5px] font-bold shrink-0 transition-all active:scale-95 cursor-pointer shadow-2xs"
+            >
+              <LogOut className="w-3 h-3 text-rose-400 shrink-0" />
+              <span>Sair</span>
+            </button>
+          )}
         </div>
 
       </div>
