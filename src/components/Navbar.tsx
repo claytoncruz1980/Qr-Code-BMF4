@@ -157,13 +157,13 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Center Group: Live Clock Badge + Supabase Realtime Connection Indicator Dot */}
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             {/* Live Clock & Date Badge */}
-            <div className="flex items-center gap-1 sm:gap-1.5 px-2 py-1 rounded-xl bg-slate-800/90 border border-slate-700/80 text-[10px] sm:text-xs text-slate-200 shadow-inner shrink-0">
+            <div className="flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-2 py-1 rounded-xl bg-slate-800/90 border border-slate-700/80 text-[10px] sm:text-xs text-slate-200 shadow-inner shrink-0">
               <div className="flex items-center gap-1 font-mono font-bold text-teal-300">
                 <Clock className="w-3 h-3 text-teal-400 shrink-0" />
                 <span>{formattedTime}</span>
               </div>
-              <span className="text-slate-500 font-bold hidden sm:inline">•</span>
-              <div className="hidden sm:flex items-center gap-1 font-medium text-slate-300">
+              <span className="text-slate-500 font-bold">•</span>
+              <div className="flex items-center gap-1 font-medium text-slate-300">
                 <span>{dateStr}</span>
               </div>
             </div>
