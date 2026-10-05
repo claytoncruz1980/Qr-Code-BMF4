@@ -84,6 +84,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     enqueueOutboxItem,
     processOutboxQueue,
     clearSyncedOutbox,
+    clearAllOutbox,
     professors,
     sessions,
     justifications,
@@ -662,21 +663,37 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
           {/* Lista de Registros Recentes do Outbox */}
           <div className="space-y-2">
-            <div className="flex items-center justify-between text-xs font-bold text-slate-800">
+            <div className="flex items-center justify-between text-xs font-bold text-slate-800 flex-wrap gap-2">
               <span>Itens na Fila de Transmissão ({outboxQueue.length}):</span>
-              {outboxQueue.some(i => (i.syncStatus || (i as any).status) === 'synced') && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    clearSyncedOutbox();
-                    showFeedback('Histórico de itens sincronizados limpo.');
-                  }}
-                  className="text-[11px] text-slate-500 hover:text-rose-600 flex items-center gap-1 font-medium cursor-pointer"
-                >
-                  <Trash2 className="w-3 h-3" />
-                  Limpar itens já sincronizados
-                </button>
-              )}
+              <div className="flex items-center gap-2">
+                {outboxQueue.some(i => (i.syncStatus || (i as any).status) === 'synced') && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      clearSyncedOutbox();
+                      showFeedback('Histórico de itens sincronizados limpo.');
+                    }}
+                    className="text-[11px] text-slate-500 hover:text-slate-800 flex items-center gap-1 font-medium cursor-pointer"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                    Limpar sincronizados
+                  </button>
+                )}
+                {outboxQueue.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      clearAllOutbox();
+                      showFeedback('Fila Outbox limpa com sucesso.');
+                    }}
+                    className="text-[11px] text-rose-500 hover:text-rose-700 flex items-center gap-1 font-bold cursor-pointer"
+                    title="Remover todos os itens pendentes ou com falha da fila"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                    Zerar fila
+                  </button>
+                )}
+              </div>
             </div>
 
             {outboxQueue.length === 0 ? (
@@ -793,6 +810,20 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <RefreshCw className={`w-3.5 h-3.5 ${isOutboxSyncing ? 'animate-spin text-amber-200' : ''}`} />
               <span>{isOutboxSyncing ? 'Sincronizando em Lote...' : 'Processar Fila Outbox Agora'}</span>
             </button>
+
+            {outboxQueue.length > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  clearAllOutbox();
+                  showFeedback('Fila Outbox zerada com sucesso!');
+                }}
+                className="w-full sm:w-auto px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer shadow-2xs"
+              >
+                <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                <span>Zerar Fila</span>
+              </button>
+            )}
           </div>
         </div>
 

@@ -95,6 +95,7 @@ interface LabContextType {
   enqueueOutboxItem: (rawItem: Omit<AttendanceOutboxItem, 'id' | 'syncStatus' | 'createdAt' | 'retryCount'>) => void;
   processOutboxQueue: (forceRetry?: boolean) => Promise<void>;
   clearSyncedOutbox: () => void;
+  clearAllOutbox: () => void;
   
   // Dynamic QR Token & Anti-Fraud Security
   dynamicToken: string;
@@ -1520,7 +1521,67 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const itemErrorsMap = new Map<string, string>();
 
     try {
-      // 3. SINCRONIZAÇÃO EM LOTE COM O BACKEND EXPRESS (/api/outbox/process)
+      // 1. SINCRONIZAÇÃO DIRETA NO SUPABASE (Sessions & Presenças)
+      if (navigator.onLine) {
+        try {
+          const sessionUpdates = new Map<string, { session: LabSession, itemIds: string[] }>();
+          for (const item of pendingItems) {
+            const sessId = item.sessionId || item.data?.sessionId;
+            if (!sessId) {
+              firestoreSucceededIds.add(item.id);
+              continue;
+            }
+            const targetSess = sessionUpdates.get(sessId)?.session || sessionsRef.current.find(s => s.id === sessId);
+            if (targetSess) {
+              const newAtt = { ...(targetSess.attendance || {}) };
+              if (item.studentId && item.data) {
+                newAtt[item.studentId] = {
+                  studentId: item.studentId,
+                  status: item.data.status || 'present',
+                  period: item.data.period || 'both',
+                  timestamp: item.data.timestamp || new Date().toLocaleTimeString(),
+                  checkinMethod: item.data.checkinMethod || 'qrcode',
+                  epiVerified: item.data.epiVerified ?? true,
+                };
+              }
+              const updatedSess: LabSession = {
+                ...targetSess,
+                attendance: newAtt,
+                lastUpdateTimestamp: Date.now(),
+              };
+              const existingIds = sessionUpdates.get(sessId)?.itemIds || [];
+              sessionUpdates.set(sessId, { session: updatedSess, itemIds: [...existingIds, item.id] });
+            } else {
+              firestoreSucceededIds.add(item.id);
+            }
+          }
+
+          for (const [, entry] of sessionUpdates.entries()) {
+            const { error: sessErr } = await supabase.from('sessions').upsert({
+              id: entry.session.id,
+              class_group_id: entry.session.classGroupId,
+              version: (entry.session.version || 0) + 1,
+              last_update_timestamp: Date.now(),
+              attendance: entry.session.attendance || {},
+              active_period: entry.session.activePeriod,
+              is_live: entry.session.isLive,
+              is_locked: entry.session.isLocked,
+              topic: entry.session.topic,
+              discipline: entry.session.discipline,
+            });
+
+            if (!sessErr) {
+              entry.itemIds.forEach(id => firestoreSucceededIds.add(id));
+            } else {
+              console.warn('[Outbox] Supabase session upsert warning:', sessErr.message);
+            }
+          }
+        } catch (supaErr: any) {
+          console.debug('[Outbox] Supabase direct sync error:', supaErr?.message || supaErr);
+        }
+      }
+
+      // 2. SINCRONIZAÇÃO EM LOTE COM O BACKEND EXPRESS (/api/outbox/process se disponível)
       let backendSuccess = false;
       try {
         const response = await fetch('/api/outbox/process', {
@@ -1535,18 +1596,14 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
         if (response.ok) {
           backendSuccess = true;
-        } else {
+        } else if (response.status !== 404) {
           const statusMsg = `Servidor HTTP ${response.status}`;
           pendingItems.forEach(item => {
             if (!itemErrorsMap.has(item.id)) itemErrorsMap.set(item.id, statusMsg);
           });
         }
       } catch (backendErr: any) {
-        console.debug('[Outbox] Backend indisponível temporariamente:', backendErr?.message || backendErr);
-        const netMsg = backendErr?.message || 'Servidor offline';
-        pendingItems.forEach(item => {
-          if (!itemErrorsMap.has(item.id)) itemErrorsMap.set(item.id, netMsg);
-        });
+        console.debug('[Outbox] Backend Express indisponível (ambiente estático/Vercel):', backendErr?.message || backendErr);
       }
 
       // 4. ATUALIZAÇÃO ATÔMICA DA FILA, GESTÃO DE FALHAS E RETRIES
@@ -1665,6 +1722,13 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       } catch {}
       return remaining;
     });
+  }, []);
+
+  const clearAllOutbox = useCallback(() => {
+    setOutboxQueue([]);
+    try {
+      localStorage.removeItem(STORAGE_PREFIX + 'outbox_queue');
+    } catch {}
   }, []);
 
   // Gatilhos automáticos para processar Outbox ao reconectar ou ganhar foco
@@ -7126,6 +7190,7 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         enqueueOutboxItem,
         processOutboxQueue,
         clearSyncedOutbox,
+        clearAllOutbox,
         dynamicToken,
         dynamicSecondsLeft,
         dynamicSecurityHash,
