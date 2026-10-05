@@ -49,6 +49,7 @@ import { StudentAvatar } from './StudentAvatar';
 import { AppLogo } from './AppLogo';
 import { getPublicTelaoUrl, getPublicStudentCheckinUrl } from '../utils/publicUrl';
 import { NewSessionModal } from './NewSessionModal';
+import { supabase } from '../lib/supabase';
 
 interface LabProjectionScreenProps {
   onExitAndClose?: () => void;
@@ -70,6 +71,28 @@ const getProjectionParam = (key: string): string => {
     }
   }
   return '';
+};
+
+const formatTimeDisplay = (val: any): string => {
+  if (!val) return 'Presente';
+  if (typeof val === 'string') {
+    if (val.includes(':') && val.length <= 8) return val;
+    try {
+      const d = new Date(val);
+      if (!isNaN(d.getTime())) {
+        return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      }
+    } catch {}
+  }
+  if (typeof val === 'number') {
+    try {
+      const d = new Date(val);
+      if (!isNaN(d.getTime())) {
+        return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      }
+    } catch {}
+  }
+  return String(val);
 };
 
 export const LabProjectionScreen: React.FC<LabProjectionScreenProps> = ({
@@ -252,6 +275,79 @@ export const LabProjectionScreen: React.FC<LabProjectionScreenProps> = ({
   const [cloudSessionData, setCloudSessionData] = useState<ActiveSessionDocument | null>(null);
   const currentVersionRef = useRef<number>(0);
   const lastUpdateTimestampRef = useRef<number>(0);
+
+  // Fetch session directly from Supabase if urlSessionId is provided (e.g. from email link)
+  useEffect(() => {
+    if (!urlSessionId) return;
+    const fetchSessionFromCloud = async () => {
+      try {
+        const { data, error } = await supabase.from('sessions').select('*').eq('id', urlSessionId).maybeSingle();
+        if (!error && data) {
+          setCloudSessionData({
+            sessionId: data.id,
+            classGroupId: data.class_group_id,
+            discipline: data.discipline,
+            professorId: data.professor_id,
+            professorName: data.professor_name,
+            activityCategory: data.activity_category,
+            activityType: data.activity_type,
+            labLocation: data.lab_location,
+            activePeriod: data.active_period,
+            isPeriod1Locked: data.is_period_1_locked,
+            isPeriod2Locked: data.is_period_2_locked,
+            date: data.date,
+            startTime: data.start_time,
+            endTime: data.end_time,
+            topic: data.topic,
+            checkinCode: data.checkin_code,
+            isLive: data.is_live,
+            isLocked: data.is_locked,
+            attendance: data.attendance || {},
+            version: data.version || 1,
+            lastUpdateTimestamp: data.last_update_timestamp || Date.now(),
+          } as any);
+        }
+      } catch (e) {
+        console.debug('Error fetching session by urlSessionId:', e);
+      }
+    };
+    fetchSessionFromCloud();
+
+    const channel = supabase.channel(`telao_session_link_${urlSessionId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'sessions', filter: `id=eq.${urlSessionId}` }, (payload: any) => {
+        if (payload.new) {
+          const row = payload.new;
+          setCloudSessionData({
+            sessionId: row.id,
+            classGroupId: row.class_group_id,
+            discipline: row.discipline,
+            professorId: row.professor_id,
+            professorName: row.professor_name,
+            activityCategory: row.activity_category,
+            activityType: row.activity_type,
+            labLocation: row.lab_location,
+            activePeriod: row.active_period,
+            isPeriod1Locked: row.is_period_1_locked,
+            isPeriod2Locked: row.is_period_2_locked,
+            date: row.date,
+            startTime: row.start_time,
+            endTime: row.end_time,
+            topic: row.topic,
+            checkinCode: row.checkin_code,
+            isLive: row.is_live,
+            isLocked: row.is_locked,
+            attendance: row.attendance || {},
+            version: row.version || 1,
+            lastUpdateTimestamp: row.last_update_timestamp || Date.now(),
+          } as any);
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [urlSessionId]);
 
   // Synchronize current local version tracker with local session version
   useEffect(() => {
@@ -1321,9 +1417,11 @@ export const LabProjectionScreen: React.FC<LabProjectionScreenProps> = ({
                             ? 'text-white bg-emerald-600 border-emerald-400'
                             : 'text-emerald-400 bg-emerald-950/60 border-emerald-800/60'
                         }`}>
-                          {(currentPeriod === '2' || currentPeriod === 'p2_start' || currentPeriod === 'p2_end')
-                            ? (rec?.period2Timestamp || rec?.p2StartTimestamp || rec?.timestamp || 'Presente')
-                            : (rec?.period1Timestamp || rec?.p1StartTimestamp || rec?.timestamp || 'Presente')}
+                          {formatTimeDisplay(
+                            (currentPeriod === '2' || currentPeriod === 'p2_start' || currentPeriod === 'p2_end')
+                              ? (rec?.period2Timestamp || rec?.p2StartTimestamp || rec?.timestamp)
+                              : (rec?.period1Timestamp || rec?.p1StartTimestamp || rec?.timestamp)
+                          )}
                         </span>
                       </div>
                     );
