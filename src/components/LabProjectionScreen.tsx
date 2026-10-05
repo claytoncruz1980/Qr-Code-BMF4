@@ -32,7 +32,8 @@ import {
   Layers,
   ToggleLeft,
   ToggleRight,
-  Info
+  Info,
+  Calendar
 } from 'lucide-react';
 import { useLab, isDateToday } from '../context/LabContext';
 import { ClassPeriod, Student, getActivityTypeLabel, ActiveSessionDocument, LabSession } from '../types';
@@ -337,6 +338,11 @@ export const LabProjectionScreen: React.FC<LabProjectionScreenProps> = ({
       lastUpdateTimestamp: Math.max(cloudSessionData?.lastUpdateTimestamp || 0, localEffectiveSession?.lastUpdateTimestamp || 0, Date.now()),
     } as LabSession;
   }, [localEffectiveSession, cloudSessionData, sessions, effectiveClassId]);
+
+  const currentDateStr = useMemo(() => {
+    const d = effectiveSession?.date ? new Date(effectiveSession.date + 'T00:00:00') : new Date();
+    return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  }, [effectiveSession?.date]);
 
   const selectedClass = useMemo(() => {
     const found = classes.find(c => 
@@ -972,8 +978,11 @@ export const LabProjectionScreen: React.FC<LabProjectionScreenProps> = ({
               </div>
             )}
 
-            {/* Real-time Digital Clock */}
-            <div className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 bg-slate-800/80 rounded-xl border border-slate-700/80 text-xs font-mono font-bold text-teal-300 shrink-0">
+            {/* Real-time Date and Digital Clock */}
+            <div className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 bg-slate-800/80 rounded-xl border border-slate-700/80 text-[11px] sm:text-xs font-mono font-bold text-teal-300 shrink-0">
+              <Calendar className="w-3.5 h-3.5 text-teal-400 hidden xs:block" />
+              <span>{currentDateStr}</span>
+              <span className="text-slate-500">•</span>
               <Clock className="w-3.5 h-3.5 text-teal-400" />
               <span>{currentTime}</span>
             </div>
