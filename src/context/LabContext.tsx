@@ -1,6 +1,4 @@
 import React, { createContext, useContext, useState, useEffect, useMemo, useRef, useCallback, ReactNode } from 'react';
-import { doc, onSnapshot, setDoc, getDoc, getDocFromServer, writeBatch } from 'firebase/firestore';
-import { db } from '../lib/firebase';
 import { supabase } from '../lib/supabase';
 import { 
   Student, 
@@ -1700,7 +1698,7 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   }, []);
 
-  // Broadcast current state to Cloud Firestore, backend server and other devices
+  // Broadcast current state to Supabase, backend server and other devices
   const broadcastCurrentState = useCallback((statePayload: any) => {
     const enrichedPayload = {
       ...statePayload,
@@ -1713,27 +1711,7 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       lastUpdated: statePayload.lastUpdated || Date.now(),
     };
 
-    // 1. Cloud Firestore Real-Time Sync (Instant execution without debounce for maximum speed)
-    const now = Date.now();
-    if (now >= firestoreBlockedUntilRef.current) {
-      try {
-        const syncDocRef = doc(db, 'sync_state', 'master');
-        setDoc(syncDocRef, {
-          id: 'master',
-          lastUpdated: enrichedPayload.lastUpdated || now,
-          payload: enrichedPayload,
-        }, { merge: true }).catch((err: any) => {
-          if (err?.code === 'resource-exhausted' || (err?.message && err.message.includes('Quota limit exceeded'))) {
-            firestoreBlockedUntilRef.current = Date.now() + 30 * 1000;
-          }
-          console.debug('Cloud sync notice (offline/fallback mode):', err?.message || err);
-        });
-      } catch {
-        // Local offline mode
-      }
-    }
-
-    // 2. WebSocket instant broadcast (0ms delay)
+    // 1. WebSocket instant broadcast (0ms delay)
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       try {
         wsRef.current.send(JSON.stringify({
@@ -1745,7 +1723,7 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
     }
 
-    // 2.5 Supabase Realtime Broadcast Channel
+    // 2. Supabase Realtime Broadcast Channel
     try {
       supabase.channel('bmf4_attendance_realtime').send({
         type: 'broadcast',
@@ -1762,57 +1740,13 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }).catch(() => {});
   }, []);
 
-  // Synchronize active session with Data Versioning to Cloud Firestore collection 'activeSession'
+  // Synchronize active session with Data Versioning to Supabase
   const syncSessionVersionToFirestore = useCallback(async (session: LabSession, explicitVersion?: number) => {
     if (!session || !session.id) return;
     const version = explicitVersion !== undefined 
       ? explicitVersion 
       : (typeof session.version === 'number' && session.version > 0 ? session.version : 1);
     const lastUpdateTimestamp = session.lastUpdateTimestamp || Date.now();
-
-    const docPayload: ActiveSessionDocument = {
-      id: session.id,
-      sessionId: session.id,
-      classGroupId: session.classGroupId,
-      version,
-      lastUpdateTimestamp,
-      attendance: session.attendance || {},
-      activePeriod: session.activePeriod,
-      isLive: session.isLive,
-      isLocked: session.isLocked,
-      topic: session.topic,
-      discipline: session.discipline,
-      date: session.date,
-      professorId: session.professorId,
-      professorName: session.professorName,
-      activityType: session.activityType,
-      labLocation: session.labLocation,
-      checkinCode: session.checkinCode,
-      updatedBy: clientIdRef.current,
-    };
-
-    if (navigator.onLine && Date.now() > firestoreBlockedUntilRef.current) {
-      try {
-        // 1. Grava no documento com o id da sessão na coleção 'activeSession'
-        const sessionDocRef = doc(db, 'activeSession', session.id);
-        await setDoc(sessionDocRef, docPayload, { merge: true });
-
-        // 2. Grava também no documento com o id da turma para o telão resolver rapidamente
-        if (session.classGroupId) {
-          const classDocRef = doc(db, 'activeSession', session.classGroupId);
-          await setDoc(classDocRef, docPayload, { merge: true });
-        }
-
-        // 3. Grava no alias 'current'
-        const currentDocRef = doc(db, 'activeSession', 'current');
-        await setDoc(currentDocRef, docPayload, { merge: true });
-      } catch (err: any) {
-        if (err?.code === 'resource-exhausted') {
-          firestoreBlockedUntilRef.current = Date.now() + 30 * 1000;
-        }
-        console.debug('[Firestore activeSession write notice]:', err?.message || err);
-      }
-    }
 
     // Sync to Supabase Realtime table if online
     if (navigator.onLine) {
@@ -2082,80 +2016,6 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       isRemoteUpdateRef.current = false;
     }, 150);
   }, [getLocalLastUpdated, setLocalLastUpdated, broadcastCurrentState]);
-
-  // 11. Cloud Firestore Real-time Snapshot Listener
-  useEffect(() => {
-    let unsubscribe: (() => void) | null = null;
-    let isCancelled = false;
-
-    try {
-      const syncDocRef = doc(db, 'sync_state', 'master');
-      unsubscribe = onSnapshot(syncDocRef, {
-        includeMetadataChanges: false
-      }, (docSnap) => {
-        if (isCancelled) return;
-        if (docSnap.exists()) {
-          const cloudData = docSnap.data();
-          if (cloudData && cloudData.payload) {
-            setRealtimeConnected(true);
-            applyServerState(cloudData.payload);
-          }
-        }
-      }, (err) => {
-        console.debug('Firestore onSnapshot notice (offline/fallback mode):', err?.message || err);
-      });
-    } catch (err: any) {
-      console.debug('Firestore initialization notice:', err?.message || err);
-    }
-
-    return () => {
-      isCancelled = true;
-      if (unsubscribe) {
-        unsubscribe();
-      }
-    };
-  }, [applyServerState]);
-
-  // 12. Cloud Firestore Real-time Snapshot Listener for active sessions (Per-class independence & real-time sync)
-  useEffect(() => {
-    let unsubs: (() => void)[] = [];
-    let isCancelled = false;
-
-    try {
-      const currentRef = doc(db, 'activeSession', 'current');
-      const unsubCurrent = onSnapshot(currentRef, (docSnap) => {
-        if (isCancelled) return;
-        if (docSnap.exists()) {
-          const data = docSnap.data() as ActiveSessionDocument;
-          if (data) {
-            applySessionAttendanceFromCloud(data);
-          }
-        }
-      }, () => {});
-      unsubs.push(unsubCurrent);
-
-      if (selectedClassId) {
-        const classRef = doc(db, 'activeSession', selectedClassId);
-        const unsubClass = onSnapshot(classRef, (docSnap) => {
-          if (isCancelled) return;
-          if (docSnap.exists()) {
-            const data = docSnap.data() as ActiveSessionDocument;
-            if (data) {
-              applySessionAttendanceFromCloud(data);
-            }
-          }
-        }, () => {});
-        unsubs.push(unsubClass);
-      }
-    } catch (err) {
-      console.debug('ActiveSession snapshot listener notice:', err);
-    }
-
-    return () => {
-      isCancelled = true;
-      unsubs.forEach(u => u());
-    };
-  }, [selectedClassId, applySessionAttendanceFromCloud]);
 
   // 14. Supabase Realtime Channel Subscription (postgres_changes & broadcast)
   useEffect(() => {
@@ -2515,31 +2375,7 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         return;
       }
     } catch (err) {
-      console.debug('Server sync notice, using cloud fallback:', err);
-    }
-
-    if (Date.now() > firestoreBlockedUntilRef.current) {
-      try {
-        const syncDocRef = doc(db, 'sync_state', 'master');
-        let snap;
-        try {
-          snap = await getDocFromServer(syncDocRef);
-        } catch {
-          snap = await getDoc(syncDocRef);
-        }
-        if (snap.exists()) {
-          const cloudData = snap.data();
-          if (cloudData && cloudData.payload) {
-            applyServerState(cloudData.payload);
-            return;
-          }
-        }
-      } catch (err: any) {
-        if (err?.code === 'resource-exhausted') {
-          firestoreBlockedUntilRef.current = Date.now() + 30 * 1000;
-        }
-        console.debug('Firestore initial load notice:', err?.message || err);
-      }
+      console.debug('Server sync notice:', err);
     }
   }, [applyServerState]);
 

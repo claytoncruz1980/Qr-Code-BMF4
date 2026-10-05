@@ -36,8 +36,6 @@ import {
 } from 'lucide-react';
 import { useLab, isDateToday } from '../context/LabContext';
 import { ClassPeriod, Student, getActivityTypeLabel, ActiveSessionDocument, LabSession } from '../types';
-import { onSnapshot, doc } from 'firebase/firestore';
-import { db } from '../lib/firebase';
 import { 
   getStudentAttendanceRecord, 
   isRecordPresent, 
@@ -263,45 +261,6 @@ export const LabProjectionScreen: React.FC<LabProjectionScreenProps> = ({
       lastUpdateTimestampRef.current = localEffectiveSession.lastUpdateTimestamp;
     }
   }, [localEffectiveSession?.version, localEffectiveSession?.lastUpdateTimestamp]);
-
-  // 3. Realtime subscription on Supabase 'activeSession' with strict Data Versioning filter
-  // Filtro que apenas aceita atualizações se o 'version' for superior ao atual,
-  // garantindo que o estado no telão ignore pacotes de dados desordenados ou defasados da nuvem.
-  useEffect(() => {
-    const targetDocId = urlSessionId || localEffectiveSession?.id || effectiveClassId || 'current';
-    let isCancelled = false;
-    let unsubscribe: (() => void) | null = null;
-
-    try {
-      const activeSessionDocRef = doc(db, 'activeSession', targetDocId);
-      unsubscribe = onSnapshot(activeSessionDocRef, {
-        includeMetadataChanges: false
-      }, (docSnap) => {
-        if (isCancelled || !docSnap.exists()) return;
-        const data = docSnap.data() as ActiveSessionDocument;
-        if (!data) return;
-
-        const incomingVersion = typeof data.version === 'number' ? data.version : 0;
-        const incomingTimestamp = typeof data.lastUpdateTimestamp === 'number' ? data.lastUpdateTimestamp : 0;
-
-        // Accept all updates to ensure real-time presence display on projection screen
-        currentVersionRef.current = Math.max(currentVersionRef.current, incomingVersion);
-        lastUpdateTimestampRef.current = Math.max(lastUpdateTimestampRef.current, incomingTimestamp);
-        setCloudSessionData(data);
-      }, (err) => {
-        console.debug('[Telão Data Versioning] onSnapshot activeSession notice:', err?.message || err);
-      });
-    } catch (err: any) {
-      console.debug('[Telão Data Versioning] Erro ao registrar onSnapshot:', err?.message || err);
-    }
-
-    return () => {
-      isCancelled = true;
-      if (unsubscribe) {
-        unsubscribe();
-      }
-    };
-  }, [urlSessionId, localEffectiveSession?.id, effectiveClassId]);
 
   // 4. Resolve effectiveSession using strictly the active/base session without leaking attendance from past sessions
   const effectiveSession = useMemo<LabSession | null>(() => {
