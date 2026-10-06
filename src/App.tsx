@@ -21,6 +21,7 @@ import { ProfessorLoginModal } from './components/ProfessorLoginModal';
 import { AuthGateScreen } from './components/AuthGateScreen';
 import { FirstAccessPinModal } from './components/FirstAccessPinModal';
 import { AutoUpdateListener } from './components/AutoUpdateListener';
+import { GuidedTourModal } from './components/GuidedTourModal';
 
 import { ClassPeriod, getActivityTypeLabel } from './types';
 import { Tv, Sparkles, UserCheck, LayoutGrid, Users, GraduationCap, FileSpreadsheet, Settings, Award, FileCheck, X, Layers, CheckCircle2 } from 'lucide-react';
@@ -40,6 +41,16 @@ function MainApp() {
   const [isStudentCheckinOpen, setIsStudentCheckinOpen] = useState(false);
   const [isProfessorLoginOpen, setIsProfessorLoginOpen] = useState(false);
   const [isFirstAccessModalOpen, setIsFirstAccessModalOpen] = useState(false);
+  const [isTourModalOpen, setIsTourModalOpen] = useState(false);
+
+  useEffect(() => {
+    try {
+      const completed = localStorage.getItem('bmf4_guided_tour_completed_v1');
+      if (!completed && activeProfessor) {
+        setIsTourModalOpen(true);
+      }
+    } catch {}
+  }, [activeProfessor]);
 
 
   const isDateToday = (dateStr?: string): boolean => {
@@ -307,7 +318,18 @@ function MainApp() {
         onOpenNewSessionModal={() => setIsNewSessionOpen(true)}
         onOpenQuickPickerModal={() => setIsQuickPickerOpen(true)}
         onOpenProfessorLogin={() => setIsProfessorLoginOpen(true)}
+        onOpenTour={() => setIsTourModalOpen(true)}
+      />
 
+      {/* Guided Tour Modal */}
+      <GuidedTourModal
+        isOpen={isTourModalOpen}
+        onClose={() => {
+          setIsTourModalOpen(false);
+          try {
+            localStorage.setItem('bmf4_guided_tour_completed_v1', 'true');
+          } catch {}
+        }}
       />
 
       {/* Main View Container with strict responsive bounds */}

@@ -19,7 +19,8 @@ import {
   LogIn,
   Wifi,
   WifiOff,
-  Database
+  Database,
+  HelpCircle
 } from 'lucide-react';
 import { useLab } from '../context/LabContext';
 import { AppLogo } from './AppLogo';
@@ -44,6 +45,7 @@ interface NavbarProps {
   onOpenProfessorLogin?: () => void;
   onOpenGoogleCalendar?: () => void;
   onOpenGoogleForms?: () => void;
+  onOpenTour?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -52,6 +54,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenProfessorLogin,
   onOpenGoogleCalendar,
   onOpenGoogleForms,
+  onOpenTour,
 }) => {
   const { 
     classes,
@@ -131,7 +134,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* ========================================================================= */}
         {/* LINE 1: Logo, Live Clock, Connection Dot & Controls                       */}
         {/* ========================================================================= */}
-        <div className="flex items-center justify-between min-h-[38px] sm:min-h-[44px] py-1 gap-1.5 sm:gap-3 border-b border-slate-800/80">
+        <div className="flex items-center justify-between min-h-[52px] sm:min-h-[62px] py-2 gap-2 sm:gap-4 border-b border-slate-800/80">
           
           {/* Left: Modern App Brand */}
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
@@ -140,13 +143,13 @@ export const Navbar: React.FC<NavbarProps> = ({
               className="flex items-center gap-1.5 sm:gap-2 text-left group cursor-pointer focus:outline-none shrink-0"
               title="Voltar para a Chamada Principal"
             >
-              <AppLogo size="sm" className="w-6 h-6 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl shadow-xs shrink-0 transition-transform group-hover:scale-105" />
+              <AppLogo size="sm" className="w-7 h-7 sm:w-9 sm:h-9 rounded-xl shadow-xs shrink-0 transition-transform group-hover:scale-105" />
               
               <div className="flex items-center gap-1 sm:gap-1.5 leading-none">
                 <span className="font-black text-xs sm:text-sm md:text-base tracking-tight text-white group-hover:text-teal-300 transition-colors">
                   MEDICINA
                 </span>
-                <span className="text-teal-500 font-black text-[10px] sm:text-xs">•</span>
+                <span className="text-teal-500 font-black text-xs">•</span>
                 <span className="font-extrabold text-xs sm:text-sm md:text-base tracking-wide text-teal-400">
                   BMF4
                 </span>
@@ -155,11 +158,11 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
 
           {/* Center Group: Live Clock Badge + Supabase Realtime Connection Indicator Dot */}
-          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-            {/* Live Clock & Date Badge */}
-            <div className="flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-2 py-1 rounded-xl bg-slate-800/90 border border-slate-700/80 text-[10px] sm:text-xs text-slate-200 shadow-inner shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+            {/* Live Clock & Date Badge (Datador preservado e nunca excluído) */}
+            <div className="flex items-center gap-1.5 sm:gap-2 px-2.5 py-1.5 rounded-xl bg-slate-800/95 border border-slate-700/80 text-[11px] sm:text-xs text-slate-200 shadow-inner shrink-0">
               <div className="flex items-center gap-1 font-mono font-bold text-teal-300">
-                <Clock className="w-3 h-3 text-teal-400 shrink-0" />
+                <Clock className="w-3.5 h-3.5 text-teal-400 shrink-0" />
                 <span>{formattedTime}</span>
               </div>
               <span className="text-slate-500 font-bold">•</span>
@@ -175,8 +178,8 @@ export const Navbar: React.FC<NavbarProps> = ({
             />
           </div>
 
-          {/* Right: Controls (Ajustes, Som - Always fully visible) */}
-          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          {/* Right: Controls (Ajustes, Som - Desktop only in Line 1) */}
+          <div className="hidden md:flex items-center gap-1.5 sm:gap-2 shrink-0">
             {/* Ajustes Button */}
             <button
               id="btn-navbar-ajustes"
@@ -194,6 +197,18 @@ export const Navbar: React.FC<NavbarProps> = ({
               <Settings className={`w-3.5 h-3.5 ${activeTab === 'ajustes' ? 'rotate-45 text-slate-950' : 'text-slate-200'} transition-transform shrink-0`} />
               <span className="hidden md:inline font-bold">Ajustes</span>
             </button>
+
+            {/* Tour / Ajuda Button */}
+            {onOpenTour && (
+              <button
+                onClick={onOpenTour}
+                className="h-7 sm:h-8 px-2.5 rounded-xl bg-teal-500/20 hover:bg-teal-500/30 border border-teal-400/40 text-teal-200 text-xs font-bold transition-all cursor-pointer shadow-2xs shrink-0 flex items-center justify-center gap-1 active:scale-95"
+                title="Tour Guiado do Sistema"
+              >
+                <HelpCircle className="w-3.5 h-3.5 text-teal-300" />
+                <span className="hidden md:inline font-bold">Tour</span>
+              </button>
+            )}
 
             {/* Sound Toggle Button */}
             <button
@@ -380,33 +395,33 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
 
         {/* ========================================================================= */}
-        {/* LINE 2 (Mobile Phones): Compact Professor + Turma Selector + Sair         */}
+        {/* LINE 2 (Mobile Phones): Compact Professor + Turma Selector + Quick Actions*/}
         {/* ========================================================================= */}
-        <div className="md:hidden flex items-center justify-between py-1 gap-1.5 border-t border-slate-800/50">
+        <div className="md:hidden flex items-center justify-between py-1.5 gap-1.5 border-t border-slate-800/70 overflow-x-auto">
           
           {/* Active Professor Profile / Login (Mobile Compact) */}
           {activeProfessor ? (
             <button
               onClick={onOpenProfessorLogin}
               title={`Docente: ${activeProfessor.name}. Clique para trocar de login.`}
-              className="flex items-center gap-1 bg-slate-800/95 hover:bg-slate-800 border border-slate-700/80 rounded-lg px-1.5 py-0.5 max-w-[125px] sm:max-w-[150px] text-left transition-all active:scale-95 cursor-pointer shadow-2xs shrink-0"
+              className="flex items-center gap-1 bg-slate-800/95 hover:bg-slate-800 border border-slate-700/80 rounded-lg px-1.5 py-1 max-w-[105px] text-left transition-all active:scale-95 cursor-pointer shadow-2xs shrink-0"
             >
               <div className="w-4 h-4 rounded-md bg-gradient-to-tr from-teal-600 to-emerald-500 text-white flex items-center justify-center font-bold text-[9px] shadow-xs shrink-0">
                 {activeProfessor.name.charAt(0).toUpperCase()}
               </div>
               <div className="flex flex-col min-w-0 leading-none">
-                <span className="text-[6.5px] uppercase tracking-wider font-black text-teal-400">
+                <span className="text-[6px] uppercase tracking-wider font-black text-teal-400">
                   Professor
                 </span>
-                <span className="font-bold text-white text-[10px] truncate max-w-[80px] sm:max-w-[105px]">
-                  {activeProfessor.name.split(' ')[0]} {activeProfessor.name.split(' ')[1] || ''}
+                <span className="font-bold text-white text-[9.5px] truncate max-w-[65px]">
+                  {activeProfessor.name.split(' ')[0]}
                 </span>
               </div>
             </button>
           ) : (
             <button
               onClick={onOpenProfessorLogin}
-              className="flex items-center gap-1 bg-gradient-to-r from-teal-600 to-emerald-600 text-white font-bold text-[10.5px] rounded-lg px-2 py-0.5 shrink-0 shadow-xs"
+              className="flex items-center gap-1 bg-gradient-to-r from-teal-600 to-emerald-600 text-white font-bold text-[10px] rounded-lg px-2 py-1 shrink-0 shadow-xs"
             >
               <KeyRound className="w-3 h-3" />
               <span>Login</span>
@@ -414,8 +429,8 @@ export const Navbar: React.FC<NavbarProps> = ({
           )}
 
           {/* Turma Selector (Compact Dropdown Menu on Mobile) */}
-          <div className="flex items-center gap-1 bg-slate-800/95 border border-slate-700/80 rounded-lg px-1.5 py-0.5 flex-1 min-w-0 shadow-2xs">
-            <GraduationCap className="w-3 h-3 text-teal-400 shrink-0" />
+          <div className="flex items-center gap-1 bg-slate-800/95 border border-slate-700/80 rounded-lg px-2 py-1 flex-1 min-w-[85px] shadow-2xs">
+            <GraduationCap className="w-3.5 h-3.5 text-teal-400 shrink-0" />
             <select
               id="select-class-mobile-header"
               value={selectedClassId}
@@ -423,7 +438,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 setSelectedClassId(e.target.value);
                 playBeep('confirm');
               }}
-              className="bg-transparent text-white font-bold text-[10px] focus:outline-none cursor-pointer appearance-none w-full truncate pr-1"
+              className="bg-transparent text-white font-bold text-[10.5px] focus:outline-none cursor-pointer appearance-none w-full truncate pr-1"
               title="Selecionar Turma Ativa"
             >
               {classes.map(cls => (
@@ -435,21 +450,67 @@ export const Navbar: React.FC<NavbarProps> = ({
             <ChevronDown className="w-3 h-3 text-slate-400 pointer-events-none shrink-0" />
           </div>
 
-          {/* Red Sair button on Mobile Line 2 when logged in */}
-          {activeProfessor && (
+          {/* Mobile Quick Action Buttons (Ajustes, Tour, Som, Sair) */}
+          <div className="flex items-center gap-1 shrink-0">
+            {/* Ajustes Button */}
             <button
-              id="btn-navbar-logout-mobile"
               onClick={() => {
-                logoutProfessor();
+                setActiveTab('ajustes');
                 playBeep('confirm');
               }}
-              title="Sair (Encerrar sessão do docente)"
-              className="flex items-center gap-1 bg-rose-950/80 hover:bg-rose-900 border border-rose-800/80 text-rose-300 hover:text-white rounded-lg px-2 py-1 text-[10.5px] font-bold shrink-0 transition-all active:scale-95 cursor-pointer shadow-2xs"
+              title="Ajustes"
+              className={`p-1.5 rounded-lg border transition-all cursor-pointer ${
+                activeTab === 'ajustes'
+                  ? 'bg-teal-500 text-slate-950 border-teal-400 font-bold'
+                  : 'bg-slate-800 text-slate-200 border-slate-700 hover:bg-slate-700'
+              }`}
             >
-              <LogOut className="w-3 h-3 text-rose-400 shrink-0" />
-              <span>Sair</span>
+              <Settings className="w-3.5 h-3.5" />
             </button>
-          )}
+
+            {/* Tour Button */}
+            {onOpenTour && (
+              <button
+                onClick={onOpenTour}
+                title="Tour Guiado"
+                className="p-1.5 rounded-lg bg-teal-500/20 border border-teal-400/40 text-teal-200 hover:bg-teal-500/30 transition-all cursor-pointer"
+              >
+                <HelpCircle className="w-3.5 h-3.5 text-teal-300" />
+              </button>
+            )}
+
+            {/* Sound Toggle Button */}
+            <button
+              onClick={() => {
+                const next = !soundEnabled;
+                setSoundEnabled(next);
+                if (next) playBeep('success');
+              }}
+              title={soundEnabled ? 'Som Ligado' : 'Silencioso'}
+              className={`p-1.5 rounded-lg border transition-all cursor-pointer ${
+                soundEnabled
+                  ? 'bg-teal-950/80 text-teal-300 border-teal-500/70'
+                  : 'bg-slate-800 text-slate-400 border-slate-700'
+              }`}
+            >
+              {soundEnabled ? <Volume2 className="w-3.5 h-3.5 text-teal-300" /> : <VolumeX className="w-3.5 h-3.5 text-slate-400" />}
+            </button>
+
+            {/* Sair Button */}
+            {activeProfessor && (
+              <button
+                id="btn-navbar-logout-mobile"
+                onClick={() => {
+                  logoutProfessor();
+                  playBeep('confirm');
+                }}
+                title="Sair"
+                className="p-1.5 rounded-lg bg-rose-950/80 hover:bg-rose-900 border border-rose-800/80 text-rose-300 hover:text-white transition-all cursor-pointer"
+              >
+                <LogOut className="w-3.5 h-3.5 text-rose-400" />
+              </button>
+            )}
+          </div>
         </div>
 
       </div>
