@@ -342,52 +342,40 @@ export const LabProjectionScreen: React.FC<LabProjectionScreenProps> = ({
     }
   }, [localEffectiveSession?.version, localEffectiveSession?.lastUpdateTimestamp]);
 
-  // 4. Resolve effectiveSession strictly without leaking attendance from past sessions or other classes
+  // 4. Resolve effectiveSession robustly for all call possibilities (1st, 2nd, both, email link)
   const effectiveSession = useMemo<LabSession | null>(() => {
-    // If specific session requested via URL (email link / telao link)
     if (urlSessionId) {
       if (cloudSessionData && (cloudSessionData.sessionId === urlSessionId || cloudSessionData.id === urlSessionId)) {
         return cloudSessionData as unknown as LabSession;
       }
       const explicit = sessions.find(s => s.id === urlSessionId);
       if (explicit) return explicit;
-      
-      // If cloud/local session not loaded yet, return a clean empty session for this URL session id so 0 students show as confirmed
-      return {
-        id: urlSessionId,
-        classGroupId: effectiveClassId,
-        discipline: 'BMF4',
-        date: new Date().toISOString().split('T')[0],
-        isLive: true,
-        isLocked: false,
-        attendance: {},
-        version: 1,
-      } as LabSession;
     }
 
-    // Otherwise, find today's session or active session for this class only
     const classSessions = sessions.filter(s => s.classGroupId === effectiveClassId);
+    
+    // 1. Live & unlocked session for today
     const todayLiveUnlocked = classSessions.find(s => isDateToday(s.date) && s.isLive && !s.isLocked);
     if (todayLiveUnlocked) return todayLiveUnlocked;
 
+    // 2. Active session from LabContext
     if (activeSession && activeSession.classGroupId === effectiveClassId) {
       return activeSession;
     }
 
+    // 3. Any live session today
+    const todayLive = classSessions.find(s => isDateToday(s.date) && s.isLive);
+    if (todayLive) return todayLive;
+
+    // 4. Most recent session today
     const todaySession = classSessions.find(s => isDateToday(s.date));
     if (todaySession) return todaySession;
 
-    // Clean fallback with ZERO attendance (prevent leaking past sessions or sessions[0])
-    return {
-      id: `session-clean-${effectiveClassId}-${Date.now()}`,
-      classGroupId: effectiveClassId,
-      discipline: 'BMF4',
-      date: new Date().toISOString().split('T')[0],
-      isLive: true,
-      isLocked: false,
-      attendance: {},
-      version: 1,
-    } as LabSession;
+    // 5. Most recent session overall or first session
+    if (classSessions.length > 0) return classSessions[0];
+    if (sessions.length > 0) return sessions[0];
+
+    return null;
   }, [urlSessionId, cloudSessionData, sessions, effectiveClassId, activeSession]);
 
   const currentDateStr = useMemo(() => {
@@ -778,9 +766,9 @@ export const LabProjectionScreen: React.FC<LabProjectionScreenProps> = ({
     setSelectedPeriod(null);
     setSelectedNextStageOverride(null);
 
-    const realSessId = effectiveSession?.id && !effectiveSession.id.startsWith('session-proj-') 
+    const realSessId = (effectiveSession?.id && !effectiveSession.id.startsWith('session-proj-'))
       ? effectiveSession.id 
-      : (sessions.find(s => s.classGroupId === effectiveClassId && s.isLive)?.id || sessions.find(s => s.classGroupId === effectiveClassId)?.id);
+      : (activeSession?.id || sessions.find(s => s.classGroupId === effectiveClassId && s.isLive)?.id || sessions.find(s => s.classGroupId === effectiveClassId)?.id || sessions[0]?.id);
 
     if (isLockAndOpen) {
       lockCurrentSession(realSessId, effectiveClassId);
@@ -844,9 +832,9 @@ export const LabProjectionScreen: React.FC<LabProjectionScreenProps> = ({
   };
 
   const handleConfirmLockSession = () => {
-    const realSessId = effectiveSession?.id && !effectiveSession.id.startsWith('session-proj-') 
+    const realSessId = (effectiveSession?.id && !effectiveSession.id.startsWith('session-proj-'))
       ? effectiveSession.id 
-      : (sessions.find(s => s.classGroupId === effectiveClassId && s.isLive)?.id || sessions.find(s => s.classGroupId === effectiveClassId)?.id);
+      : (activeSession?.id || sessions.find(s => s.classGroupId === effectiveClassId && s.isLive)?.id || sessions.find(s => s.classGroupId === effectiveClassId)?.id || sessions[0]?.id);
 
     lockCurrentSession(realSessId, effectiveClassId);
     setCloudSessionData(prev => prev ? { ...prev, isLocked: true, isLive: false } : null);
