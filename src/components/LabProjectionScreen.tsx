@@ -359,81 +359,53 @@ export const LabProjectionScreen: React.FC<LabProjectionScreenProps> = ({
     }
   }, [localEffectiveSession?.version, localEffectiveSession?.lastUpdateTimestamp]);
 
-  // 4. Resolve effectiveSession using strictly the active/base session without leaking attendance from past sessions
+  // 4. Resolve effectiveSession strictly without leaking attendance from past sessions or other classes
   const effectiveSession = useMemo<LabSession | null>(() => {
-    const isCloudMatching = !cloudSessionData || 
-      !cloudSessionData.sessionId || 
-      !localEffectiveSession || 
-      cloudSessionData.sessionId === localEffectiveSession.id ||
-      cloudSessionData.classGroupId === effectiveClassId;
-
-    const foundLiveSess = sessions.find(s => s.classGroupId === effectiveClassId && s.isLive && !s.isLocked);
-    const foundAnySess = sessions.find(s => s.classGroupId === effectiveClassId);
-
-    const base = localEffectiveSession || (isCloudMatching && cloudSessionData?.isLive && !cloudSessionData?.isLocked ? cloudSessionData : null) || foundLiveSess || foundAnySess || sessions[0];
-
-    if (!base && sessions.length === 0 && !cloudSessionData) return null;
-
-    const targetSession = base || sessions[0];
-    const mergedAttendance: Record<string, any> = {};
-
-    if (targetSession?.attendance) {
-      Object.assign(mergedAttendance, targetSession.attendance);
-    }
-    if (localEffectiveSession?.attendance && localEffectiveSession.id === targetSession?.id) {
-      Object.assign(mergedAttendance, localEffectiveSession.attendance);
-    }
-    if (cloudSessionData?.attendance && cloudSessionData.sessionId === targetSession?.id) {
-      Object.assign(mergedAttendance, cloudSessionData.attendance);
+    // If specific session requested via URL (email link / telao link)
+    if (urlSessionId) {
+      if (cloudSessionData && (cloudSessionData.sessionId === urlSessionId || cloudSessionData.id === urlSessionId)) {
+        return cloudSessionData as unknown as LabSession;
+      }
+      const explicit = sessions.find(s => s.id === urlSessionId);
+      if (explicit) return explicit;
+      
+      // If cloud/local session not loaded yet, return a clean empty session for this URL session id so 0 students show as confirmed
+      return {
+        id: urlSessionId,
+        classGroupId: effectiveClassId,
+        discipline: 'BMF4',
+        date: new Date().toISOString().split('T')[0],
+        isLive: true,
+        isLocked: false,
+        attendance: {},
+        version: 1,
+      } as LabSession;
     }
 
-    // Determine lock and live status authority: localEffectiveSession takes precedence
-    const isExplicitlyLocked = Boolean(
-      localEffectiveSession 
-        ? (localEffectiveSession.isLocked && !localEffectiveSession.isLive)
-        : (isCloudMatching && cloudSessionData?.isLocked && !cloudSessionData?.isLive)
-    );
+    // Otherwise, find today's session or active session for this class only
+    const classSessions = sessions.filter(s => s.classGroupId === effectiveClassId);
+    const todayLiveUnlocked = classSessions.find(s => isDateToday(s.date) && s.isLive && !s.isLocked);
+    if (todayLiveUnlocked) return todayLiveUnlocked;
 
-    const isExplicitlyLive = Boolean(
-      localEffectiveSession
-        ? (localEffectiveSession.isLive && !localEffectiveSession.isLocked)
-        : (isCloudMatching && cloudSessionData?.isLive && !cloudSessionData?.isLocked)
-    );
+    if (activeSession && activeSession.classGroupId === effectiveClassId) {
+      return activeSession;
+    }
 
-    const activePeriodToUse = (
-      (localEffectiveSession && localEffectiveSession.activePeriod) ||
-      (isCloudMatching && cloudSessionData?.activePeriod) ||
-      '1'
-    ) as ClassPeriod;
+    const todaySession = classSessions.find(s => isDateToday(s.date));
+    if (todaySession) return todaySession;
 
+    // Clean fallback with ZERO attendance (prevent leaking past sessions or sessions[0])
     return {
-      ...(base || {}),
-      ...(isCloudMatching ? (cloudSessionData || {}) : {}),
-      id: localEffectiveSession?.id || (isCloudMatching && (cloudSessionData?.sessionId || cloudSessionData?.id)) || `session-proj-${effectiveClassId}`,
-      classGroupId: localEffectiveSession?.classGroupId || (isCloudMatching && cloudSessionData?.classGroupId) || effectiveClassId,
-      discipline: localEffectiveSession?.discipline || cloudSessionData?.discipline || 'BMF4',
-      professorId: localEffectiveSession?.professorId || cloudSessionData?.professorId || 'prof-admin-1',
-      professorName: localEffectiveSession?.professorName || cloudSessionData?.professorName || 'Prof. Dr. Juliano Pereira',
-      activityCategory: localEffectiveSession?.activityCategory || cloudSessionData?.activityCategory || 'pratica',
-      activityType: localEffectiveSession?.activityType || cloudSessionData?.activityType || 'aula_pratica',
-      labLocation: localEffectiveSession?.labLocation || cloudSessionData?.labLocation || 'anatomia',
-      activePeriod: activePeriodToUse,
-      isPeriod1Locked: localEffectiveSession?.isPeriod1Locked ?? cloudSessionData?.isPeriod1Locked ?? false,
-      isPeriod2Locked: localEffectiveSession?.isPeriod2Locked ?? cloudSessionData?.isPeriod2Locked ?? false,
-      date: localEffectiveSession?.date || cloudSessionData?.date || new Date().toISOString().split('T')[0],
-      startTime: localEffectiveSession?.startTime || '07:30',
-      endTime: localEffectiveSession?.endTime || '12:00',
-      topic: localEffectiveSession?.topic || cloudSessionData?.topic || 'Aula BMF4',
-      anatomicalSpecimens: localEffectiveSession?.anatomicalSpecimens || [],
-      checkinCode: localEffectiveSession?.checkinCode || cloudSessionData?.checkinCode || '123456',
-      isLive: isExplicitlyLocked ? false : isExplicitlyLive,
-      isLocked: isExplicitlyLocked,
-      isPaused: false,
-      attendance: mergedAttendance,
-      version: Math.max(cloudSessionData?.version || 0, localEffectiveSession?.version || 0, 1),
-      lastUpdateTimestamp: Math.max(cloudSessionData?.lastUpdateTimestamp || 0, localEffectiveSession?.lastUpdateTimestamp || 0, Date.now()),
+      id: `session-clean-${effectiveClassId}-${Date.now()}`,
+      classGroupId: effectiveClassId,
+      discipline: 'BMF4',
+      date: new Date().toISOString().split('T')[0],
+      isLive: true,
+      isLocked: false,
+      attendance: {},
+      version: 1,
     } as LabSession;
-  }, [localEffectiveSession, cloudSessionData, sessions, effectiveClassId]);
+  }, [urlSessionId, cloudSessionData, sessions, effectiveClassId, activeSession]);
 
   const currentDateStr = useMemo(() => {
     const d = effectiveSession?.date ? new Date(effectiveSession.date + 'T00:00:00') : new Date();
