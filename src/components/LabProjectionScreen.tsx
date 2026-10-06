@@ -226,16 +226,7 @@ export const LabProjectionScreen: React.FC<LabProjectionScreenProps> = ({
       const explicit = sessions.find(s => s.id === urlSessionId);
       if (explicit) return explicit;
     }
-    const classSessions = sessions
-      .filter(s => s.classGroupId === effectiveClassId)
-      .sort((a, b) => {
-        const scoreA = (a.isLive && !a.isLocked) ? 1000 : a.isLive ? 500 : 0;
-        const scoreB = (b.isLive && !b.isLocked) ? 1000 : b.isLive ? 500 : 0;
-        if (scoreA !== scoreB) return scoreB - scoreA;
-        const timeA = a.timestamp || (a.date ? new Date(a.date).getTime() : 0);
-        const timeB = b.timestamp || (b.date ? new Date(b.date).getTime() : 0);
-        return timeB - timeA;
-      });
+    const classSessions = sessions.filter(s => s.classGroupId === effectiveClassId);
 
     // 1. Live & unlocked session for today (HIGHEST PRIORITY)
     const todayLiveUnlocked = classSessions.find(s => isDateToday(s.date) && s.isLive && !s.isLocked);
@@ -246,29 +237,21 @@ export const LabProjectionScreen: React.FC<LabProjectionScreenProps> = ({
       return activeSession;
     }
 
-    // 3. Any live & unlocked session for this class
-    const anyLiveUnlocked = classSessions.find(s => s.isLive && !s.isLocked);
-    if (anyLiveUnlocked) return anyLiveUnlocked;
-
-    // 4. Any live session today
-    const todayLive = classSessions.find(s => isDateToday(s.date) && s.isLive);
-    if (todayLive) return todayLive;
-
-    // 5. Active session from LabContext
-    if (activeSession && activeSession.classGroupId === effectiveClassId) {
-      return activeSession;
-    }
-
-    // 6. Most recent session today (even if locked)
+    // 3. Most recent session today
     const todaySession = classSessions.find(s => isDateToday(s.date));
     if (todaySession) return todaySession;
 
-    // 7. Most recent session overall
-    if (classSessions.length > 0) {
-      return classSessions[0];
-    }
-
-    return null;
+    // 4. Clean fallback with ZERO attendance (never fallback to classSessions[0] or past sessions)
+    return {
+      id: `session-clean-${effectiveClassId}-${Date.now()}`,
+      classGroupId: effectiveClassId,
+      discipline: 'BMF4',
+      date: new Date().toISOString().split('T')[0],
+      isLive: true,
+      isLocked: false,
+      attendance: {},
+      version: 1,
+    } as LabSession;
   }, [urlSessionId, activeSession, sessions, effectiveClassId]);
 
   // 2. Real-time Cloud Data Versioning state for activeSession
