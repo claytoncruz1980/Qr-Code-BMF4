@@ -397,23 +397,23 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* ========================================================================= */}
         {/* LINE 2 (Mobile Phones): Compact Professor + Turma Selector + Quick Actions*/}
         {/* ========================================================================= */}
-        <div className="md:hidden flex items-center justify-between py-1.5 gap-1.5 border-t border-slate-800/70 overflow-x-auto">
+        <div className="md:hidden flex items-center justify-between py-2 px-1 gap-2 border-t border-slate-800/70 overflow-x-auto">
           
           {/* Active Professor Profile / Login (Mobile Compact) */}
           {activeProfessor ? (
             <button
               onClick={onOpenProfessorLogin}
               title={`Docente: ${activeProfessor.name}. Clique para trocar de login.`}
-              className="flex items-center gap-1 bg-slate-800/95 hover:bg-slate-800 border border-slate-700/80 rounded-lg px-1.5 py-1 max-w-[105px] text-left transition-all active:scale-95 cursor-pointer shadow-2xs shrink-0"
+              className="flex items-center gap-1.5 bg-slate-800/95 hover:bg-slate-800 border border-slate-700/80 rounded-xl px-2 py-1.5 max-w-[120px] text-left transition-all active:scale-95 cursor-pointer shadow-2xs shrink-0"
             >
-              <div className="w-4 h-4 rounded-md bg-gradient-to-tr from-teal-600 to-emerald-500 text-white flex items-center justify-center font-bold text-[9px] shadow-xs shrink-0">
+              <div className="w-5 h-5 rounded-lg bg-gradient-to-tr from-teal-600 to-emerald-500 text-white flex items-center justify-center font-bold text-[10px] shadow-xs shrink-0">
                 {activeProfessor.name.charAt(0).toUpperCase()}
               </div>
-              <div className="flex flex-col min-w-0 leading-none">
-                <span className="text-[6px] uppercase tracking-wider font-black text-teal-400">
+              <div className="flex flex-col min-w-0 leading-tight">
+                <span className="text-[7px] uppercase tracking-wider font-black text-teal-400">
                   Professor
                 </span>
-                <span className="font-bold text-white text-[9.5px] truncate max-w-[65px]">
+                <span className="font-bold text-white text-[11px] truncate max-w-[75px]">
                   {activeProfessor.name.split(' ')[0]}
                 </span>
               </div>
@@ -421,16 +421,16 @@ export const Navbar: React.FC<NavbarProps> = ({
           ) : (
             <button
               onClick={onOpenProfessorLogin}
-              className="flex items-center gap-1 bg-gradient-to-r from-teal-600 to-emerald-600 text-white font-bold text-[10px] rounded-lg px-2 py-1 shrink-0 shadow-xs"
+              className="flex items-center gap-1.5 bg-gradient-to-r from-teal-600 to-emerald-600 text-white font-bold text-xs px-2.5 py-1.5 rounded-xl shrink-0 shadow-xs"
             >
-              <KeyRound className="w-3 h-3" />
+              <KeyRound className="w-3.5 h-3.5" />
               <span>Login</span>
             </button>
           )}
 
           {/* Turma Selector (Compact Dropdown Menu on Mobile) */}
-          <div className="flex items-center gap-1 bg-slate-800/95 border border-slate-700/80 rounded-lg px-2 py-1 flex-1 min-w-[85px] shadow-2xs">
-            <GraduationCap className="w-3.5 h-3.5 text-teal-400 shrink-0" />
+          <div className="flex items-center gap-1.5 bg-slate-800/95 border border-slate-700/80 rounded-xl px-2.5 py-1.5 flex-1 min-w-[100px] shadow-2xs">
+            <GraduationCap className="w-4 h-4 text-teal-400 shrink-0" />
             <select
               id="select-class-mobile-header"
               value={selectedClassId}
@@ -438,7 +438,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 setSelectedClassId(e.target.value);
                 playBeep('confirm');
               }}
-              className="bg-transparent text-white font-bold text-[10.5px] focus:outline-none cursor-pointer appearance-none w-full truncate pr-1"
+              className="bg-transparent text-white font-bold text-xs focus:outline-none cursor-pointer appearance-none w-full truncate pr-1"
               title="Selecionar Turma Ativa"
             >
               {classes.map(cls => (
@@ -447,11 +447,11 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </option>
               ))}
             </select>
-            <ChevronDown className="w-3 h-3 text-slate-400 pointer-events-none shrink-0" />
+            <ChevronDown className="w-3.5 h-3.5 text-slate-400 pointer-events-none shrink-0" />
           </div>
 
           {/* Mobile Quick Action Buttons (Ajustes, Tour, Som, Sair) */}
-          <div className="flex items-center gap-1 shrink-0">
+          <div className="flex items-center gap-1.5 shrink-0">
             {/* Ajustes Button */}
             <button
               onClick={() => {
@@ -459,13 +459,13 @@ export const Navbar: React.FC<NavbarProps> = ({
                 playBeep('confirm');
               }}
               title="Ajustes"
-              className={`p-1.5 rounded-lg border transition-all cursor-pointer ${
+              className={`p-2 rounded-xl border transition-all cursor-pointer ${
                 activeTab === 'ajustes'
                   ? 'bg-teal-500 text-slate-950 border-teal-400 font-bold'
                   : 'bg-slate-800 text-slate-200 border-slate-700 hover:bg-slate-700'
               }`}
             >
-              <Settings className="w-3.5 h-3.5" />
+              <Settings className="w-4 h-4" />
             </button>
 
             {/* Tour Button */}
@@ -473,9 +473,9 @@ export const Navbar: React.FC<NavbarProps> = ({
               <button
                 onClick={onOpenTour}
                 title="Tour Guiado"
-                className="p-1.5 rounded-lg bg-teal-500/20 border border-teal-400/40 text-teal-200 hover:bg-teal-500/30 transition-all cursor-pointer"
+                className="p-2 rounded-xl bg-teal-500/20 border border-teal-400/40 text-teal-200 hover:bg-teal-500/30 transition-all cursor-pointer"
               >
-                <HelpCircle className="w-3.5 h-3.5 text-teal-300" />
+                <HelpCircle className="w-4 h-4 text-teal-300" />
               </button>
             )}
 
@@ -487,13 +487,13 @@ export const Navbar: React.FC<NavbarProps> = ({
                 if (next) playBeep('success');
               }}
               title={soundEnabled ? 'Som Ligado' : 'Silencioso'}
-              className={`p-1.5 rounded-lg border transition-all cursor-pointer ${
+              className={`p-2 rounded-xl border transition-all cursor-pointer ${
                 soundEnabled
                   ? 'bg-teal-950/80 text-teal-300 border-teal-500/70'
                   : 'bg-slate-800 text-slate-400 border-slate-700'
               }`}
             >
-              {soundEnabled ? <Volume2 className="w-3.5 h-3.5 text-teal-300" /> : <VolumeX className="w-3.5 h-3.5 text-slate-400" />}
+              {soundEnabled ? <Volume2 className="w-4 h-4 text-teal-300" /> : <VolumeX className="w-4 h-4 text-slate-400" />}
             </button>
 
             {/* Sair Button */}
@@ -505,9 +505,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                   playBeep('confirm');
                 }}
                 title="Sair"
-                className="p-1.5 rounded-lg bg-rose-950/80 hover:bg-rose-900 border border-rose-800/80 text-rose-300 hover:text-white transition-all cursor-pointer"
+                className="p-2 rounded-xl bg-rose-950/80 hover:bg-rose-900 border border-rose-800/80 text-rose-300 hover:text-white transition-all cursor-pointer"
               >
-                <LogOut className="w-3.5 h-3.5 text-rose-400" />
+                <LogOut className="w-4 h-4 text-rose-400" />
               </button>
             )}
           </div>
