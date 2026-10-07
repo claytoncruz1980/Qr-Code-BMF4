@@ -134,10 +134,10 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* ========================================================================= */}
         {/* LINE 1: Logo, Live Clock, Connection Dot & Controls                       */}
         {/* ========================================================================= */}
-        <div className="flex items-center justify-between min-h-[52px] sm:min-h-[62px] py-2 gap-2 sm:gap-4 border-b border-slate-800/80">
+        <div className="flex items-center justify-between min-h-[58px] sm:min-h-[68px] py-2.5 gap-2 sm:gap-4 border-b border-slate-800/80">
           
-          {/* Left: Modern App Brand */}
-          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          {/* Left Group: Brand + Live Clock & Date Badge (shifted slightly left) */}
+          <div className="flex items-center gap-2.5 sm:gap-4 shrink-0">
             <button 
               onClick={() => setActiveTab('chamada')} 
               className="flex items-center gap-1.5 sm:gap-2 text-left group cursor-pointer focus:outline-none shrink-0"
@@ -155,14 +155,11 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </span>
               </div>
             </button>
-          </div>
 
-          {/* Center Group: Live Clock Badge + Supabase Realtime Connection Indicator Dot */}
-          <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
-            {/* Live Clock & Date Badge (Datador preservado e nunca excluído) */}
-            <div className="flex items-center gap-1.5 sm:gap-2 px-2.5 py-1.5 rounded-xl bg-slate-800/95 border border-slate-700/80 text-[11px] sm:text-xs text-slate-200 shadow-inner shrink-0">
+            {/* Live Clock & Date Badge (Visível em todas as telas, deslocado à esquerda) */}
+            <div className="flex items-center gap-1 px-2 py-1 sm:px-2.5 sm:py-1.5 rounded-xl bg-slate-800/95 border border-slate-700/80 text-[10px] sm:text-xs text-slate-200 shadow-inner shrink-0">
               <div className="flex items-center gap-1 font-mono font-bold text-teal-300">
-                <Clock className="w-3.5 h-3.5 text-teal-400 shrink-0" />
+                <Clock className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-teal-400 shrink-0" />
                 <span>{formattedTime}</span>
               </div>
               <span className="text-slate-500 font-bold">•</span>
@@ -171,15 +168,15 @@ export const Navbar: React.FC<NavbarProps> = ({
               </div>
             </div>
 
-            {/* Supabase Realtime Connection Indicator (Compact Dot Only with Tooltip) */}
+            {/* Supabase Realtime Connection Indicator Dot */}
             <div 
-              className={`w-3 h-3 sm:w-3.5 sm:h-3.5 rounded-full border-2 shadow-sm shrink-0 cursor-help ${connectionState.dotColor} ${connectionState.badgeBg}`}
+              className={`w-2.5 h-2.5 sm:w-3.5 sm:h-3.5 rounded-full border-2 shadow-sm shrink-0 cursor-help ${connectionState.dotColor} ${connectionState.badgeBg}`}
               title={connectionState.label}
             />
           </div>
 
-          {/* Right: Controls (Ajustes, Som - Desktop only in Line 1) */}
-          <div className="hidden md:flex items-center gap-1.5 sm:gap-2 shrink-0">
+          {/* Right: Controls (Ajustes, Som, Tour visíveis em todas as telas) */}
+          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
             {/* Ajustes Button */}
             <button
               id="btn-navbar-ajustes"
@@ -188,55 +185,27 @@ export const Navbar: React.FC<NavbarProps> = ({
                 playBeep('confirm');
               }}
               title="Ajustes e Configurações do Sistema"
-              className={`h-7 sm:h-8 px-2 sm:px-2.5 rounded-xl transition-all border cursor-pointer shrink-0 flex items-center justify-center gap-1 text-xs shadow-2xs ${
+              className={`h-7 sm:h-8 px-2 sm:px-2.5 rounded-xl transition-all border cursor-pointer shrink-0 flex items-center justify-center gap-1 text-[11px] sm:text-xs shadow-2xs ${
                 activeTab === 'ajustes'
                   ? 'bg-teal-500 text-slate-950 border-teal-400 font-black ring-2 ring-teal-400/40 shadow-xs'
                   : 'bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border-slate-700 font-semibold'
               }`}
             >
               <Settings className={`w-3.5 h-3.5 ${activeTab === 'ajustes' ? 'rotate-45 text-slate-950' : 'text-slate-200'} transition-transform shrink-0`} />
-              <span className="hidden md:inline font-bold">Ajustes</span>
+              <span className="hidden sm:inline font-bold">Ajustes</span>
             </button>
 
             {/* Tour / Ajuda Button */}
             {onOpenTour && (
               <button
                 onClick={onOpenTour}
-                className="h-7 sm:h-8 px-2.5 rounded-xl bg-teal-500/20 hover:bg-teal-500/30 border border-teal-400/40 text-teal-200 text-xs font-bold transition-all cursor-pointer shadow-2xs shrink-0 flex items-center justify-center gap-1 active:scale-95"
+                className="h-7 sm:h-8 px-2 sm:px-2.5 rounded-xl bg-teal-500/20 hover:bg-teal-500/30 border border-teal-400/40 text-teal-200 text-[11px] sm:text-xs font-bold transition-all cursor-pointer shadow-2xs shrink-0 flex items-center justify-center gap-1 active:scale-95"
                 title="Tour Guiado do Sistema"
               >
-                <HelpCircle className="w-3.5 h-3.5 text-teal-300" />
-                <span className="hidden md:inline font-bold">Tour</span>
+                <HelpCircle className="w-3.5 h-3.5 text-teal-300 shrink-0" />
+                <span className="hidden sm:inline font-bold">Tutorial</span>
               </button>
             )}
-
-            {/* Sound Toggle Button */}
-            <button
-              id="btn-navbar-toggle-som"
-              onClick={() => {
-                const next = !soundEnabled;
-                setSoundEnabled(next);
-                if (next) playBeep('success');
-              }}
-              title={soundEnabled ? 'Som Ligado (Clique para silenciar)' : 'Silencioso (Clique para ativar áudio)'}
-              className={`h-7 sm:h-8 px-2 sm:px-2.5 rounded-xl transition-all border cursor-pointer shrink-0 shadow-2xs flex items-center justify-center gap-1.5 ${
-                soundEnabled
-                  ? 'bg-teal-950/70 hover:bg-teal-900/80 text-teal-300 border-teal-500/70 ring-1 ring-teal-500/40'
-                  : 'bg-slate-800/90 hover:bg-slate-700/90 text-slate-400 hover:text-slate-200 border-slate-700'
-              }`}
-            >
-              {soundEnabled ? (
-                <>
-                  <Volume2 className="w-3.5 h-3.5 text-teal-300 shrink-0" />
-                  <span className="w-1.5 h-1.5 rounded-full bg-teal-400 animate-pulse shrink-0" />
-                </>
-              ) : (
-                <>
-                  <VolumeX className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                  <span className="w-1.5 h-1.5 rounded-full bg-slate-500 shrink-0" />
-                </>
-              )}
-            </button>
           </div>
         </div>
 
@@ -353,16 +322,16 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <button
                   onClick={onOpenProfessorLogin}
                   title={`Docente: ${activeProfessor.name}. Clique para alternar perfil.`}
-                  className="flex items-center gap-1.5 bg-slate-800/90 hover:bg-slate-800 border border-slate-700 hover:border-teal-500/50 rounded-xl px-2.5 py-1 text-xs text-slate-200 transition-all active:scale-95 cursor-pointer shadow-2xs"
+                  className="flex items-center gap-2 bg-slate-800/90 hover:bg-slate-800 border border-slate-700 hover:border-teal-500/50 rounded-2xl px-3.5 py-1.5 text-xs text-slate-200 transition-all active:scale-95 cursor-pointer shadow-2xs"
                 >
-                  <div className="w-5 h-5 rounded-lg bg-gradient-to-tr from-teal-600 to-emerald-500 text-white flex items-center justify-center font-bold text-[10px] shadow-xs shrink-0">
+                  <div className="w-6 h-6 rounded-xl bg-gradient-to-tr from-teal-600 to-emerald-500 text-white flex items-center justify-center font-bold text-xs shadow-xs shrink-0">
                     {activeProfessor.name.charAt(0).toUpperCase()}
                   </div>
                   <div className="flex flex-col text-left leading-tight">
-                    <span className="text-[7.5px] text-teal-400 font-black uppercase tracking-wider leading-none">
+                    <span className="text-[8px] text-teal-400 font-black uppercase tracking-wider leading-none">
                       Professor
                     </span>
-                    <span className="font-bold text-white text-xs truncate max-w-[110px] lg:max-w-[160px]">
+                    <span className="font-bold text-white text-xs sm:text-sm truncate max-w-[150px] lg:max-w-[240px]">
                       {activeProfessor.name}
                     </span>
                   </div>
@@ -399,22 +368,22 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* ========================================================================= */}
         <div className="md:hidden flex items-center justify-between py-2 px-1 gap-2 border-t border-slate-800/70 overflow-x-auto">
           
-          {/* Active Professor Profile / Login (Mobile Compact) */}
+          {/* Active Professor Profile / Login (Mobile) */}
           {activeProfessor ? (
             <button
               onClick={onOpenProfessorLogin}
               title={`Docente: ${activeProfessor.name}. Clique para trocar de login.`}
-              className="flex items-center gap-1.5 bg-slate-800/95 hover:bg-slate-800 border border-slate-700/80 rounded-xl px-2 py-1.5 max-w-[120px] text-left transition-all active:scale-95 cursor-pointer shadow-2xs shrink-0"
+              className="flex items-center gap-2 bg-slate-800/95 hover:bg-slate-800 border border-slate-700/80 rounded-xl px-2.5 py-1.5 max-w-[150px] sm:max-w-[180px] text-left transition-all active:scale-95 cursor-pointer shadow-2xs shrink-0"
             >
               <div className="w-5 h-5 rounded-lg bg-gradient-to-tr from-teal-600 to-emerald-500 text-white flex items-center justify-center font-bold text-[10px] shadow-xs shrink-0">
                 {activeProfessor.name.charAt(0).toUpperCase()}
               </div>
               <div className="flex flex-col min-w-0 leading-tight">
-                <span className="text-[7px] uppercase tracking-wider font-black text-teal-400">
+                <span className="text-[7.5px] uppercase tracking-wider font-black text-teal-400">
                   Professor
                 </span>
-                <span className="font-bold text-white text-[11px] truncate max-w-[75px]">
-                  {activeProfessor.name.split(' ')[0]}
+                <span className="font-bold text-white text-[11px] sm:text-xs truncate max-w-[105px] sm:max-w-[130px]">
+                  {activeProfessor.name}
                 </span>
               </div>
             </button>
@@ -450,35 +419,8 @@ export const Navbar: React.FC<NavbarProps> = ({
             <ChevronDown className="w-3.5 h-3.5 text-slate-400 pointer-events-none shrink-0" />
           </div>
 
-          {/* Mobile Quick Action Buttons (Ajustes, Tour, Som, Sair) */}
+          {/* Mobile Quick Action Buttons (Som, Sair) */}
           <div className="flex items-center gap-1.5 shrink-0">
-            {/* Ajustes Button */}
-            <button
-              onClick={() => {
-                setActiveTab('ajustes');
-                playBeep('confirm');
-              }}
-              title="Ajustes"
-              className={`p-2 rounded-xl border transition-all cursor-pointer ${
-                activeTab === 'ajustes'
-                  ? 'bg-teal-500 text-slate-950 border-teal-400 font-bold'
-                  : 'bg-slate-800 text-slate-200 border-slate-700 hover:bg-slate-700'
-              }`}
-            >
-              <Settings className="w-4 h-4" />
-            </button>
-
-            {/* Tour Button */}
-            {onOpenTour && (
-              <button
-                onClick={onOpenTour}
-                title="Tour Guiado"
-                className="p-2 rounded-xl bg-teal-500/20 border border-teal-400/40 text-teal-200 hover:bg-teal-500/30 transition-all cursor-pointer"
-              >
-                <HelpCircle className="w-4 h-4 text-teal-300" />
-              </button>
-            )}
-
             {/* Sound Toggle Button */}
             <button
               onClick={() => {

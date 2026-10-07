@@ -350,6 +350,22 @@ export const LabProjectionScreen: React.FC<LabProjectionScreenProps> = ({
       }
       const explicit = sessions.find(s => s.id === urlSessionId);
       if (explicit) return explicit;
+
+      // Clean fallback for urlSessionId while loading so it never leaks today's other sessions or wrong attendance/time
+      return {
+        id: urlSessionId,
+        classGroupId: effectiveClassId,
+        discipline: 'BMF4',
+        date: new Date().toISOString().split('T')[0],
+        startTime: '07:30',
+        endTime: '12:00',
+        topic: 'Chamada Aberta',
+        checkinCode: 'BMF-MED',
+        isLive: true,
+        isLocked: false,
+        attendance: {},
+        version: 1,
+      } as LabSession;
     }
 
     const classSessions = sessions.filter(s => s.classGroupId === effectiveClassId);

@@ -120,6 +120,30 @@ export const LovableDashboard: React.FC<LovableDashboardProps> = ({
   const [confirmLockModalOpen, setConfirmLockModalOpen] = useState(false);
   const [dismissedLiveAlertSessionIds, setDismissedLiveAlertSessionIds] = useState<string[]>([]);
 
+  // Global Search State & Results
+  const [globalSearchTerm, setGlobalSearchTerm] = useState('');
+  const [isGlobalSearchFocused, setIsGlobalSearchFocused] = useState(false);
+  const [searchedStudentModal, setSearchedStudentModal] = useState<Student | null>(null);
+  const [searchedClassModal, setSearchedClassModal] = useState<any | null>(null);
+
+  const globalSearchResults = useMemo(() => {
+    const term = globalSearchTerm.toLowerCase().trim();
+    if (!term || term.length < 2) return { matchingClasses: [], matchingStudents: [] };
+
+    const matchingClasses = classes.filter(c => 
+      c.name.toLowerCase().includes(term) || 
+      (c.code && c.code.toLowerCase().includes(term)) ||
+      (c.discipline && c.discipline.toLowerCase().includes(term))
+    );
+
+    const matchingStudents = students.filter(s =>
+      s.name.toLowerCase().includes(term) ||
+      (s.registrationNumber && s.registrationNumber.toLowerCase().includes(term))
+    ).slice(0, 10);
+
+    return { matchingClasses, matchingStudents };
+  }, [globalSearchTerm, classes, students]);
+
   // Quick Justification Modal State
   const [justifyModalStudent, setJustifyModalStudent] = useState<Student | null>(null);
   const [justifyReasonCategory, setJustifyReasonCategory] = useState<'medical' | 'academic' | 'transport' | 'work' | 'other'>('medical');
@@ -383,6 +407,108 @@ export const LovableDashboard: React.FC<LovableDashboardProps> = ({
           </button>
         </div>
       )}
+
+      {/* Global Search Bar (Real-time Alunos & Turmas) */}
+      <div className="relative w-full z-30">
+        <div className="relative">
+          <Search className="w-4 h-4 text-teal-600 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <input
+            type="text"
+            placeholder="🔍 Busca global em tempo real: Digite o nome do aluno, RA/matrícula ou turma..."
+            value={globalSearchTerm}
+            onChange={(e) => setGlobalSearchTerm(e.target.value)}
+            onFocus={() => setIsGlobalSearchFocused(true)}
+            onBlur={() => setTimeout(() => setIsGlobalSearchFocused(false), 250)}
+            className="w-full pl-11 pr-10 py-3 bg-white border-2 border-teal-500/40 focus:border-teal-500 rounded-2xl shadow-md text-xs sm:text-sm font-bold text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-teal-500/20 transition-all"
+          />
+          {globalSearchTerm && (
+            <button
+              type="button"
+              onClick={() => setGlobalSearchTerm('')}
+              className="absolute right-3.5 top-1/2 -translate-y-1/2 p-1 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer transition-colors"
+              title="Limpar busca"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+
+        {/* Global Search Results Dropdown */}
+        {isGlobalSearchFocused && globalSearchTerm.trim().length >= 2 && (
+          <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl border border-slate-200 shadow-2xl overflow-hidden z-50 max-h-[380px] overflow-y-auto animate-in fade-in slide-in-from-top-2">
+            {globalSearchResults.matchingClasses.length === 0 && globalSearchResults.matchingStudents.length === 0 ? (
+              <div className="p-4 text-center text-xs text-slate-500 font-medium">
+                Nenhum resultado encontrado para "<strong className="text-slate-800">{globalSearchTerm}</strong>"
+              </div>
+            ) : (
+              <div className="divide-y divide-slate-100 text-xs">
+                {/* Turmas Matching */}
+                {globalSearchResults.matchingClasses.length > 0 && (
+                  <div className="p-2 bg-slate-50">
+                    <span className="px-2 text-[10px] font-black uppercase text-slate-400 tracking-wider">Turmas Encontradas</span>
+                    <div className="mt-1 space-y-1">
+                      {globalSearchResults.matchingClasses.map(cls => (
+                        <button
+                          key={cls.id}
+                          type="button"
+                          onClick={() => {
+                            setSearchedClassModal(cls);
+                            setIsGlobalSearchFocused(false);
+                            playBeep('click');
+                          }}
+                          className="w-full px-3 py-2 text-left rounded-xl hover:bg-teal-50 hover:text-teal-900 transition-colors flex items-center justify-between font-bold text-slate-700 cursor-pointer"
+                        >
+                          <div className="flex items-center gap-2">
+                            <Layers className="w-3.5 h-3.5 text-teal-600" />
+                            <span>{cls.name}</span>
+                            <span className="text-[10px] font-mono text-slate-400">({cls.code})</span>
+                          </div>
+                          <span className="text-[10px] font-bold text-teal-600 bg-teal-100 px-2 py-0.5 rounded-full">Ver Detalhes</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Alunos Matching */}
+                {globalSearchResults.matchingStudents.length > 0 && (
+                  <div className="p-2">
+                    <span className="px-2 text-[10px] font-black uppercase text-slate-400 tracking-wider">Alunos Encontrados</span>
+                    <div className="mt-1 space-y-1">
+                      {globalSearchResults.matchingStudents.map(st => {
+                        const studentClass = classes.find(c => c.id === st.classGroupId);
+                        return (
+                          <button
+                            key={st.id}
+                            type="button"
+                            onClick={() => {
+                              setSearchedStudentModal(st);
+                              setIsGlobalSearchFocused(false);
+                              playBeep('confirm');
+                            }}
+                            className="w-full px-3 py-2 text-left rounded-xl hover:bg-sky-50 transition-colors flex items-center justify-between cursor-pointer"
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <StudentAvatar name={st.name} size="sm" />
+                              <div className="min-w-0">
+                                <p className="font-bold text-slate-900 truncate">{st.name}</p>
+                                <p className="text-[10px] font-mono text-slate-500">
+                                  RA: {st.registrationNumber} • <span className="text-teal-600 font-bold">{studentClass?.name || 'Turma'}</span>
+                                </p>
+                              </div>
+                            </div>
+                            <span className="text-[10px] font-bold text-sky-700 bg-sky-100 px-2 py-0.5 rounded-full shrink-0">Ver Detalhes</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* 1. Header Bar: Minimalist Session Command Bar (Clean Layout) */}
       <div className="bg-white rounded-3xl p-4 sm:p-6 border border-slate-200/90 shadow-2xs space-y-4">
@@ -1864,6 +1990,164 @@ export const LovableDashboard: React.FC<LovableDashboardProps> = ({
               </button>
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* Search Result Student Detail Modal */}
+      {searchedStudentModal && (() => {
+        const studentClass = classes.find(c => c.id === searchedStudentModal.classGroupId);
+        const attendanceRec = activeSession?.attendance?.[searchedStudentModal.id];
+        const currentStatus = attendanceRec?.status || 'absent';
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in">
+            <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-slate-200 space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div className="flex items-center gap-3">
+                  <StudentAvatar name={searchedStudentModal.name} size="md" />
+                  <div>
+                    <h3 className="text-base font-black text-slate-900">{searchedStudentModal.name}</h3>
+                    <p className="text-xs font-mono text-slate-500">RA: {searchedStudentModal.registrationNumber}</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSearchedStudentModal(null)}
+                  className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="space-y-3 text-xs">
+                <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 space-y-1.5">
+                  <div className="flex justify-between">
+                    <span className="text-slate-500 font-medium">Turma:</span>
+                    <strong className="text-slate-800">{studentClass?.name || 'Turma BMF4'}</strong>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500 font-medium">E-mail:</span>
+                    <strong className="text-slate-800">{searchedStudentModal.email || 'Não cadastrado'}</strong>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500 font-medium">Status Atual na Aula:</span>
+                    <span className={`px-2 py-0.5 rounded-full font-bold ${
+                      currentStatus === 'present' ? 'bg-emerald-100 text-emerald-800' :
+                      currentStatus === 'late' ? 'bg-amber-100 text-amber-800' :
+                      currentStatus === 'excused' ? 'bg-sky-100 text-sky-800' :
+                      'bg-rose-100 text-rose-800'
+                    }`}>
+                      {currentStatus === 'present' ? 'Presente' : currentStatus === 'late' ? 'Atrasado' : currentStatus === 'excused' ? 'Justificado / Atestado' : 'Falta'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (searchedStudentModal.classGroupId && searchedStudentModal.classGroupId !== selectedClassId) {
+                        setSelectedClassId(searchedStudentModal.classGroupId);
+                      }
+                      setSearchTerm(searchedStudentModal.registrationNumber || searchedStudentModal.name);
+                      setSearchedStudentModal(null);
+                      setGlobalSearchTerm('');
+                      playBeep('confirm');
+                    }}
+                    className="py-2.5 px-3 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
+                  >
+                    <Search className="w-3.5 h-3.5" />
+                    <span>Ver na Lista</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setJustifyModalStudent(searchedStudentModal);
+                      setSearchedStudentModal(null);
+                      setGlobalSearchTerm('');
+                    }}
+                    className="py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    <FileCheck className="w-3.5 h-3.5 text-sky-600" />
+                    <span>Justificar Atestado</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Search Result Class Detail Modal */}
+      {searchedClassModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in">
+          <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-slate-200 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-teal-100 text-teal-800 flex items-center justify-center font-black">
+                  <Layers className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900">{searchedClassModal.name}</h3>
+                  <p className="text-xs font-mono text-slate-500">Código: {searchedClassModal.code}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSearchedClassModal(null)}
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 space-y-1.5">
+                <div className="flex justify-between">
+                  <span className="text-slate-500 font-medium">Disciplina:</span>
+                  <strong className="text-slate-800">{searchedClassModal.discipline || 'BMF4'}</strong>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500 font-medium">Horário Padrão:</span>
+                  <strong className="text-slate-800">{searchedClassModal.schedule || '07:30 - 12:00'}</strong>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500 font-medium">Total de Alunos:</span>
+                  <strong className="text-slate-800">{students.filter(s => s.classGroupId === searchedClassModal.id).length} alunos</strong>
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedClassId(searchedClassModal.id);
+                    setSearchedClassModal(null);
+                    setGlobalSearchTerm('');
+                    playBeep('click');
+                  }}
+                  className="flex-1 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
+                >
+                  <Check className="w-3.5 h-3.5" />
+                  <span>Selecionar Turma</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedClassId(searchedClassModal.id);
+                    setSearchedClassModal(null);
+                    setGlobalSearchTerm('');
+                    onOpenProjectionScreen();
+                  }}
+                  className="py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <Tv className="w-3.5 h-3.5 text-teal-600" />
+                  <span>Telão</span>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
