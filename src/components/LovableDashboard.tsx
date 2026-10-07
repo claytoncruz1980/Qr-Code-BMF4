@@ -45,7 +45,10 @@ import {
   KeyRound,
   ArrowRight,
   GraduationCap,
-  Plus
+  Plus,
+  Copy,
+  TrendingUp,
+  BarChart2
 } from 'lucide-react';
 import { useLab, sortClassesAlphabetically } from '../context/LabContext';
 import { Student, AttendanceStatus, ClassPeriod, getActivityTypeLabel } from '../types';
@@ -106,7 +109,8 @@ export const LovableDashboard: React.FC<LovableDashboardProps> = ({
     justifications,
     submitJustification,
     playBeep,
-    sessions
+    sessions,
+    calculateAcademicStatus
   } = useLab();
 
   // Search and Filter states
@@ -119,6 +123,16 @@ export const LovableDashboard: React.FC<LovableDashboardProps> = ({
   const [actionSuccessToast, setActionSuccessToast] = useState<string | null>(null);
   const [confirmLockModalOpen, setConfirmLockModalOpen] = useState(false);
   const [dismissedLiveAlertSessionIds, setDismissedLiveAlertSessionIds] = useState<string[]>([]);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+
+  const handleCopyText = (text: string, key: string) => {
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(text);
+      setCopiedKey(key);
+      playBeep('click');
+      setTimeout(() => setCopiedKey(null), 2000);
+    }
+  };
 
   // Global Search State & Results
   const [globalSearchTerm, setGlobalSearchTerm] = useState('');
@@ -435,70 +449,200 @@ export const LovableDashboard: React.FC<LovableDashboardProps> = ({
 
         {/* Global Search Results Dropdown */}
         {isGlobalSearchFocused && globalSearchTerm.trim().length >= 2 && (
-          <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl border border-slate-200 shadow-2xl overflow-hidden z-50 max-h-[380px] overflow-y-auto animate-in fade-in slide-in-from-top-2">
+          <div 
+            onMouseDown={(e) => {
+              // Crucial: prevent input blur so clicking any result or action registers instantly
+              e.preventDefault();
+            }}
+            className="absolute top-full left-0 right-0 mt-2 bg-white rounded-3xl border border-slate-200/90 shadow-2xl overflow-hidden z-50 max-h-[440px] overflow-y-auto animate-in fade-in slide-in-from-top-2"
+          >
             {globalSearchResults.matchingClasses.length === 0 && globalSearchResults.matchingStudents.length === 0 ? (
-              <div className="p-4 text-center text-xs text-slate-500 font-medium">
+              <div className="p-6 text-center text-xs text-slate-500 font-medium">
                 Nenhum resultado encontrado para "<strong className="text-slate-800">{globalSearchTerm}</strong>"
               </div>
             ) : (
               <div className="divide-y divide-slate-100 text-xs">
                 {/* Turmas Matching */}
                 {globalSearchResults.matchingClasses.length > 0 && (
-                  <div className="p-2 bg-slate-50">
-                    <span className="px-2 text-[10px] font-black uppercase text-slate-400 tracking-wider">Turmas Encontradas</span>
-                    <div className="mt-1 space-y-1">
-                      {globalSearchResults.matchingClasses.map(cls => (
-                        <button
-                          key={cls.id}
-                          type="button"
-                          onClick={() => {
-                            setSearchedClassModal(cls);
-                            setIsGlobalSearchFocused(false);
-                            playBeep('click');
-                          }}
-                          className="w-full px-3 py-2 text-left rounded-xl hover:bg-teal-50 hover:text-teal-900 transition-colors flex items-center justify-between font-bold text-slate-700 cursor-pointer"
-                        >
-                          <div className="flex items-center gap-2">
-                            <Layers className="w-3.5 h-3.5 text-teal-600" />
-                            <span>{cls.name}</span>
-                            <span className="text-[10px] font-mono text-slate-400">({cls.code})</span>
+                  <div className="p-3 bg-slate-50/80">
+                    <div className="flex items-center justify-between px-2 pb-1.5">
+                      <span className="text-[10px] font-black uppercase text-teal-800 tracking-wider flex items-center gap-1.5">
+                        <Layers className="w-3 h-3 text-teal-600" />
+                        <span>Turmas Encontradas ({globalSearchResults.matchingClasses.length})</span>
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-semibold">Clique para gerenciar ou projetar</span>
+                    </div>
+                    <div className="space-y-1.5">
+                      {globalSearchResults.matchingClasses.map(cls => {
+                        const clsStudentCount = students.filter(s => s.classGroupId === cls.id).length;
+                        return (
+                          <div
+                            key={cls.id}
+                            className="p-2.5 rounded-2xl bg-white border border-slate-200/80 hover:border-teal-400 hover:shadow-xs transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-2"
+                          >
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSearchedClassModal(cls);
+                                setIsGlobalSearchFocused(false);
+                                playBeep('click');
+                              }}
+                              className="flex items-center gap-3 text-left flex-1 min-w-0 cursor-pointer"
+                            >
+                              <div className="w-8 h-8 rounded-xl bg-teal-100 text-teal-800 flex items-center justify-center font-black shrink-0">
+                                <Layers className="w-4 h-4" />
+                              </div>
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-black text-slate-900 truncate">{cls.name}</span>
+                                  <span className="text-[10px] font-mono text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded font-bold">{cls.code}</span>
+                                </div>
+                                <p className="text-[11px] text-slate-500 truncate">
+                                  {cls.laboratoryRoom || 'Lab. Morfologia'} • {clsStudentCount} alunos matriculados
+                                </p>
+                              </div>
+                            </button>
+
+                            <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedClassId(cls.id);
+                                  setIsGlobalSearchFocused(false);
+                                  setGlobalSearchTerm('');
+                                  playBeep('click');
+                                  setActionSuccessToast(`Turma ${cls.name} selecionada na chamada!`);
+                                }}
+                                className="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-teal-50 hover:text-teal-800 text-slate-700 font-bold text-[11px] transition-all cursor-pointer flex items-center gap-1"
+                                title="Abrir chamada desta turma"
+                              >
+                                <Check className="w-3 h-3 text-teal-600" />
+                                <span>Ativar</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSearchedClassModal(cls);
+                                  setIsGlobalSearchFocused(false);
+                                  playBeep('click');
+                                }}
+                                className="px-3 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-[11px] transition-all cursor-pointer flex items-center gap-1 shadow-2xs"
+                              >
+                                <Eye className="w-3 h-3" />
+                                <span>Ver Painel</span>
+                              </button>
+                            </div>
                           </div>
-                          <span className="text-[10px] font-bold text-teal-600 bg-teal-100 px-2 py-0.5 rounded-full">Ver Detalhes</span>
-                        </button>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 )}
 
                 {/* Alunos Matching */}
                 {globalSearchResults.matchingStudents.length > 0 && (
-                  <div className="p-2">
-                    <span className="px-2 text-[10px] font-black uppercase text-slate-400 tracking-wider">Alunos Encontrados</span>
-                    <div className="mt-1 space-y-1">
+                  <div className="p-3">
+                    <div className="flex items-center justify-between px-2 pb-1.5">
+                      <span className="text-[10px] font-black uppercase text-sky-800 tracking-wider flex items-center gap-1.5">
+                        <Users className="w-3 h-3 text-sky-600" />
+                        <span>Alunos Encontrados ({globalSearchResults.matchingStudents.length})</span>
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-semibold">Clique para abrir ficha completa ou marcar presença</span>
+                    </div>
+                    <div className="space-y-1.5">
                       {globalSearchResults.matchingStudents.map(st => {
                         const studentClass = classes.find(c => c.id === st.classGroupId);
+                        const rec = activeSession?.attendance?.[st.id];
+                        const currentStatus = rec?.status || 'absent';
+                        const academic = calculateAcademicStatus(st.id, st.classGroupId);
+
                         return (
-                          <button
+                          <div
                             key={st.id}
-                            type="button"
-                            onClick={() => {
-                              setSearchedStudentModal(st);
-                              setIsGlobalSearchFocused(false);
-                              playBeep('confirm');
-                            }}
-                            className="w-full px-3 py-2 text-left rounded-xl hover:bg-sky-50 transition-colors flex items-center justify-between cursor-pointer"
+                            className="p-2.5 rounded-2xl bg-white border border-slate-200/80 hover:border-sky-400 hover:shadow-xs transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-2"
                           >
-                            <div className="flex items-center gap-2.5 min-w-0">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSearchedStudentModal(st);
+                                setIsGlobalSearchFocused(false);
+                                playBeep('confirm');
+                              }}
+                              className="flex items-center gap-3 text-left flex-1 min-w-0 cursor-pointer"
+                            >
                               <StudentAvatar name={st.name} size="sm" />
                               <div className="min-w-0">
-                                <p className="font-bold text-slate-900 truncate">{st.name}</p>
-                                <p className="text-[10px] font-mono text-slate-500">
-                                  RA: {st.registrationNumber} • <span className="text-teal-600 font-bold">{studentClass?.name || 'Turma'}</span>
-                                </p>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-black text-slate-900 truncate">{st.name}</span>
+                                  <span className="text-[10px] font-mono text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                                    RA: {st.registrationNumber}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2 text-[11px] text-slate-500">
+                                  <span className="text-teal-700 font-bold">{studentClass?.name || 'Turma BMF4'}</span>
+                                  <span>•</span>
+                                  <span className={`font-semibold ${
+                                    academic.attendanceRate >= 75 ? 'text-emerald-700' : 'text-rose-600 font-bold'
+                                  }`}>
+                                    {academic.attendanceRate}% freq.
+                                  </span>
+                                </div>
                               </div>
+                            </button>
+
+                            <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center">
+                              {/* Current status pill */}
+                              <span className={`px-2 py-1 rounded-xl text-[10px] font-bold ${
+                                currentStatus === 'present' ? 'bg-emerald-100 text-emerald-800' :
+                                currentStatus === 'late' ? 'bg-amber-100 text-amber-800' :
+                                currentStatus === 'excused' ? 'bg-sky-100 text-sky-800' :
+                                'bg-rose-100 text-rose-800'
+                              }`}>
+                                {currentStatus === 'present' ? 'Presente' :
+                                 currentStatus === 'late' ? 'Atraso' :
+                                 currentStatus === 'excused' ? 'Justificado' : 'Falta'}
+                              </span>
+
+                              {/* Quick Mark Presence button */}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const isAct = activeSession?.activityCategory === 'atividade' || activeSession?.activityType?.startsWith('atividade');
+                                  const newStatus = currentStatus === 'present' ? 'absent' : 'present';
+                                  setAttendanceStatus(st.id, newStatus, isAct ? 'activity_single' : 'both');
+                                  playBeep(newStatus === 'present' ? 'confirm' : 'click');
+                                  setActionSuccessToast(
+                                    newStatus === 'present' 
+                                      ? `Presença confirmada para ${st.name}!` 
+                                      : `Falta atribuída para ${st.name}`
+                                  );
+                                }}
+                                className={`px-2.5 py-1.5 rounded-xl font-bold text-[11px] transition-all cursor-pointer flex items-center gap-1 ${
+                                  currentStatus === 'present'
+                                    ? 'bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200'
+                                    : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200'
+                                }`}
+                                title={currentStatus === 'present' ? 'Alternar para Falta' : 'Confirmar Presença Imediata'}
+                              >
+                                <Check className="w-3 h-3" />
+                                <span>{currentStatus === 'present' ? 'Remover' : 'Presença'}</span>
+                              </button>
+
+                              {/* Open Full Profile & Functions */}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSearchedStudentModal(st);
+                                  setIsGlobalSearchFocused(false);
+                                  playBeep('confirm');
+                                }}
+                                className="px-3 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-[11px] transition-all cursor-pointer flex items-center gap-1 shadow-2xs"
+                              >
+                                <Eye className="w-3 h-3" />
+                                <span>Ficha & Funções</span>
+                              </button>
                             </div>
-                            <span className="text-[10px] font-bold text-sky-700 bg-sky-100 px-2 py-0.5 rounded-full shrink-0">Ver Detalhes</span>
-                          </button>
+                          </div>
                         );
                       })}
                     </div>
@@ -1994,163 +2138,502 @@ export const LovableDashboard: React.FC<LovableDashboardProps> = ({
         </div>
       )}
 
-      {/* Search Result Student Detail Modal */}
+      {/* Search Result Student Detail Modal (Informações Mais Importantes & Ações Completas) */}
       {searchedStudentModal && (() => {
-        const studentClass = classes.find(c => c.id === searchedStudentModal.classGroupId);
-        const attendanceRec = activeSession?.attendance?.[searchedStudentModal.id];
+        const student = searchedStudentModal;
+        const studentClass = classes.find(c => c.id === student.classGroupId);
+        const attendanceRec = activeSession?.attendance?.[student.id];
         const currentStatus = attendanceRec?.status || 'absent';
+        const p1Status = attendanceRec?.period1Status || attendanceRec?.p1StartStatus || (attendanceRec?.status === 'present' ? 'present' : 'absent');
+        const p2Status = attendanceRec?.period2Status || attendanceRec?.p2StartStatus || (attendanceRec?.status === 'present' ? 'present' : 'absent');
+        const academic = calculateAcademicStatus(student.id, student.classGroupId);
+        const isAct = activeSession?.activityCategory === 'atividade' || activeSession?.activityType?.startsWith('atividade');
+        const checkinTime = attendanceRec?.timestamp || attendanceRec?.period1Timestamp || attendanceRec?.p1StartTimestamp;
+
         return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in">
-            <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-slate-200 space-y-4">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                <div className="flex items-center gap-3">
-                  <StudentAvatar name={searchedStudentModal.name} size="md" />
-                  <div>
-                    <h3 className="text-base font-black text-slate-900">{searchedStudentModal.name}</h3>
-                    <p className="text-xs font-mono text-slate-500">RA: {searchedStudentModal.registrationNumber}</p>
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/75 backdrop-blur-xs animate-in fade-in">
+            <div className="bg-white rounded-3xl p-5 sm:p-6 max-w-lg w-full max-h-[92vh] overflow-y-auto shadow-2xl border border-slate-200 space-y-4">
+              
+              {/* Top Header */}
+              <div className="flex items-start justify-between pb-3 border-b border-slate-100">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="relative">
+                    <StudentAvatar name={student.name} size="lg" />
+                    <span className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white ${
+                      currentStatus === 'present' ? 'bg-emerald-500' :
+                      currentStatus === 'late' ? 'bg-amber-500' :
+                      currentStatus === 'excused' ? 'bg-sky-500' : 'bg-rose-500'
+                    }`} />
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="text-base sm:text-lg font-black text-slate-900 leading-tight truncate">
+                      {student.name}
+                    </h3>
+                    <div className="flex flex-wrap items-center gap-2 mt-1">
+                      <button
+                        type="button"
+                        onClick={() => handleCopyText(student.registrationNumber, `ra-${student.id}`)}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-mono text-[11px] font-bold transition-colors cursor-pointer"
+                        title="Clique para copiar RA"
+                      >
+                        <Copy className="w-3 h-3 text-slate-400" />
+                        <span>RA: {student.registrationNumber}</span>
+                        {copiedKey === `ra-${student.id}` && (
+                          <span className="text-[10px] text-teal-600 font-sans font-black">Copiado!</span>
+                        )}
+                      </button>
+
+                      {studentClass && (
+                        <span className="px-2 py-0.5 rounded-lg bg-teal-50 text-teal-800 font-bold text-[11px] border border-teal-200/80">
+                          {studentClass.name}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
+
                 <button
                   type="button"
                   onClick={() => setSearchedStudentModal(null)}
-                  className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer"
+                  className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer shrink-0"
                 >
-                  <X className="w-4 h-4" />
+                  <X className="w-5 h-5" />
                 </button>
               </div>
 
-              <div className="space-y-3 text-xs">
-                <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 space-y-1.5">
-                  <div className="flex justify-between">
-                    <span className="text-slate-500 font-medium">Turma:</span>
-                    <strong className="text-slate-800">{studentClass?.name || 'Turma BMF4'}</strong>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-500 font-medium">E-mail:</span>
-                    <strong className="text-slate-800">{searchedStudentModal.email || 'Não cadastrado'}</strong>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-500 font-medium">Status Atual na Aula:</span>
-                    <span className={`px-2 py-0.5 rounded-full font-bold ${
-                      currentStatus === 'present' ? 'bg-emerald-100 text-emerald-800' :
-                      currentStatus === 'late' ? 'bg-amber-100 text-amber-800' :
-                      currentStatus === 'excused' ? 'bg-sky-100 text-sky-800' :
-                      'bg-rose-100 text-rose-800'
-                    }`}>
-                      {currentStatus === 'present' ? 'Presente' : currentStatus === 'late' ? 'Atrasado' : currentStatus === 'excused' ? 'Justificado / Atestado' : 'Falta'}
+              {/* 1. Status na Chamada de Hoje / Sessão Ativa */}
+              <div className="p-3.5 bg-slate-50/90 rounded-2xl border border-slate-200/80 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-black uppercase text-slate-500 tracking-wider flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5 text-teal-600" />
+                    <span>Status na Chamada de Hoje</span>
+                  </span>
+                  <span className={`px-2.5 py-0.5 rounded-full text-xs font-black uppercase ${
+                    currentStatus === 'present' ? 'bg-emerald-100 text-emerald-800' :
+                    currentStatus === 'late' ? 'bg-amber-100 text-amber-800' :
+                    currentStatus === 'excused' ? 'bg-sky-100 text-sky-800' :
+                    'bg-rose-100 text-rose-800'
+                  }`}>
+                    {currentStatus === 'present' ? 'Presente' :
+                     currentStatus === 'late' ? 'Atrasado' :
+                     currentStatus === 'excused' ? 'Justificado / Atestado' : 'Falta Registrada'}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="p-2 rounded-xl bg-white border border-slate-200">
+                    <span className="text-slate-400 text-[10px] block font-bold">1ª Aula (P1):</span>
+                    <span className="font-bold text-slate-800">
+                      {p1Status === 'present' ? '✅ Presente' : p1Status === 'late' ? '⏱️ Atraso' : '❌ Falta'}
                     </span>
+                    {attendanceRec?.period1Timestamp && (
+                      <span className="text-[10px] font-mono text-slate-500 block">às {attendanceRec.period1Timestamp}</span>
+                    )}
+                  </div>
+
+                  <div className="p-2 rounded-xl bg-white border border-slate-200">
+                    <span className="text-slate-400 text-[10px] block font-bold">2ª Aula (P2):</span>
+                    <span className="font-bold text-slate-800">
+                      {p2Status === 'present' ? '✅ Presente' : p2Status === 'late' ? '⏱️ Atraso' : '❌ Falta'}
+                    </span>
+                    {attendanceRec?.period2Timestamp && (
+                      <span className="text-[10px] font-mono text-slate-500 block">às {attendanceRec.period2Timestamp}</span>
+                    )}
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 pt-1">
+                {checkinTime && (
+                  <div className="text-[11px] text-slate-500 flex items-center justify-between pt-1 border-t border-slate-200/60 font-medium">
+                    <span>Horário registrado: <strong className="text-slate-800 font-mono">{checkinTime}</strong></span>
+                    <span className="text-teal-700 font-semibold">
+                      Método: {attendanceRec?.checkinMethod === 'dynamic_qr' ? 'QR Code Dinâmico' :
+                               attendanceRec?.checkinMethod === 'totem' ? 'Totem do Aluno' :
+                               attendanceRec?.checkinMethod === 'qrcode' ? 'QR Code' : 'Chamada Docente'}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* 2. Lançamento Rápido de Presença (Docente 1 Clique) */}
+              <div className="space-y-1.5">
+                <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block">
+                  ⚡ Lançamento Rápido na Chamada Atual:
+                </span>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
                   <button
                     type="button"
                     onClick={() => {
-                      if (searchedStudentModal.classGroupId && searchedStudentModal.classGroupId !== selectedClassId) {
-                        setSelectedClassId(searchedStudentModal.classGroupId);
-                      }
-                      setSearchTerm(searchedStudentModal.registrationNumber || searchedStudentModal.name);
-                      setSearchedStudentModal(null);
-                      setGlobalSearchTerm('');
+                      setAttendanceStatus(student.id, 'present', isAct ? 'activity_single' : 'both');
                       playBeep('confirm');
+                      setActionSuccessToast(`Presença confirmada para ${student.name}!`);
                     }}
-                    className="py-2.5 px-3 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
+                    className="p-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-bold text-xs flex items-center justify-center gap-1 transition-all cursor-pointer"
                   >
-                    <Search className="w-3.5 h-3.5" />
-                    <span>Ver na Lista</span>
+                    <Check className="w-3.5 h-3.5" />
+                    <span>Presente</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => {
-                      setJustifyModalStudent(searchedStudentModal);
+                      setAttendanceStatus(student.id, 'late', isAct ? 'activity_single' : 'both');
+                      playBeep('warning');
+                      setActionSuccessToast(`Atraso registrado para ${student.name}`);
+                    }}
+                    className="p-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 font-bold text-xs flex items-center justify-center gap-1 transition-all cursor-pointer"
+                  >
+                    <Clock className="w-3.5 h-3.5" />
+                    <span>Atraso</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAttendanceStatus(student.id, 'absent', isAct ? 'activity_single' : 'both');
+                      playBeep('error');
+                      setActionSuccessToast(`Falta registrada para ${student.name}`);
+                    }}
+                    className="p-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 font-bold text-xs flex items-center justify-center gap-1 transition-all cursor-pointer"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                    <span>Falta</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setJustifyModalStudent(student);
                       setSearchedStudentModal(null);
                       setGlobalSearchTerm('');
                     }}
-                    className="py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                    className="p-2 rounded-xl bg-sky-50 hover:bg-sky-100 text-sky-800 border border-sky-200 font-bold text-xs flex items-center justify-center gap-1 transition-all cursor-pointer"
                   >
-                    <FileCheck className="w-3.5 h-3.5 text-sky-600" />
-                    <span>Justificar Atestado</span>
+                    <FileCheck className="w-3.5 h-3.5" />
+                    <span>Atestado</span>
                   </button>
                 </div>
               </div>
+
+              {/* 3. Frequência Geral & Assiduidade no Semestre */}
+              <div className="p-3.5 bg-slate-50/90 rounded-2xl border border-slate-200/80 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-black uppercase text-slate-500 tracking-wider flex items-center gap-1.5">
+                    <TrendingUp className="w-3.5 h-3.5 text-sky-600" />
+                    <span>Frequência Acumulada no Semestre</span>
+                  </span>
+                  <span className={`text-xs font-black ${
+                    academic.attendanceRate >= 75 ? 'text-emerald-700' : 'text-rose-600'
+                  }`}>
+                    {academic.attendanceRate}% de Presença
+                  </span>
+                </div>
+
+                {/* Progress bar */}
+                <div className="w-full h-2 rounded-full bg-slate-200 overflow-hidden">
+                  <div 
+                    className={`h-full transition-all duration-300 ${
+                      academic.attendanceRate >= 75 ? 'bg-emerald-500' : 'bg-rose-500'
+                    }`}
+                    style={{ width: `${Math.min(100, Math.max(0, academic.attendanceRate))}%` }}
+                  />
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 pt-1 text-center text-xs">
+                  <div className="p-2 bg-white rounded-xl border border-slate-200">
+                    <span className="text-[10px] text-slate-400 font-bold block">Presenças</span>
+                    <strong className="text-emerald-700 font-black text-sm">{academic.totalPresences}</strong>
+                  </div>
+                  <div className="p-2 bg-white rounded-xl border border-slate-200">
+                    <span className="text-[10px] text-slate-400 font-bold block">Faltas</span>
+                    <strong className="text-rose-600 font-black text-sm">{academic.totalAbsences}</strong>
+                  </div>
+                  <div className="p-2 bg-white rounded-xl border border-slate-200">
+                    <span className="text-[10px] text-slate-400 font-bold block">Status MEC</span>
+                    <span className={`text-[10px] font-bold block leading-tight ${
+                      academic.attendanceRate >= 75 ? 'text-emerald-700' : 'text-rose-600'
+                    }`}>
+                      {academic.attendanceRate >= 75 ? 'Regular (≥75%)' : 'Risco (<75%)'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 4. Rendimento Acadêmico BMF4 (Médias & Notas) */}
+              <div className="p-3.5 bg-slate-50/90 rounded-2xl border border-slate-200/80 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-black uppercase text-slate-500 tracking-wider flex items-center gap-1.5">
+                    <GraduationCap className="w-3.5 h-3.5 text-teal-600" />
+                    <span>Notas & Rendimento BMF4</span>
+                  </span>
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                    academic.status === 'aprovado' ? 'bg-emerald-100 text-emerald-800' :
+                    academic.status === 'exame' ? 'bg-amber-100 text-amber-800' :
+                    'bg-slate-200 text-slate-700'
+                  }`}>
+                    {academic.statusLabel}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-4 gap-1.5 text-center text-xs">
+                  <div className="p-2 bg-white rounded-xl border border-slate-200">
+                    <span className="text-[10px] text-slate-400 font-bold block">Média Geral</span>
+                    <strong className="text-slate-900 font-black text-sm">
+                      {academic.partialAverage > 0 ? academic.partialAverage.toFixed(1) : '-'}
+                    </strong>
+                  </div>
+                  <div className="p-2 bg-white rounded-xl border border-slate-200">
+                    <span className="text-[10px] text-slate-400 font-bold block">Teóricas</span>
+                    <strong className="text-slate-700 font-black text-sm">
+                      {academic.teoricaAverage > 0 ? academic.teoricaAverage.toFixed(1) : '-'}
+                    </strong>
+                  </div>
+                  <div className="p-2 bg-white rounded-xl border border-slate-200">
+                    <span className="text-[10px] text-slate-400 font-bold block">Anatomia</span>
+                    <strong className="text-slate-700 font-black text-sm">
+                      {academic.anatomiaAverage > 0 ? academic.anatomiaAverage.toFixed(1) : '-'}
+                    </strong>
+                  </div>
+                  <div className="p-2 bg-white rounded-xl border border-slate-200">
+                    <span className="text-[10px] text-slate-400 font-bold block">Histologia</span>
+                    <strong className="text-slate-700 font-black text-sm">
+                      {academic.histologiaAverage > 0 ? academic.histologiaAverage.toFixed(1) : '-'}
+                    </strong>
+                  </div>
+                </div>
+              </div>
+
+              {/* 5. Ações Adicionais & Navegação */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (student.classGroupId && student.classGroupId !== selectedClassId) {
+                      setSelectedClassId(student.classGroupId);
+                    }
+                    setSearchTerm(student.registrationNumber || student.name);
+                    setSearchedStudentModal(null);
+                    setGlobalSearchTerm('');
+                    playBeep('confirm');
+                    setActionSuccessToast(`Localizado na lista da chamada: ${student.name}`);
+                  }}
+                  className="py-2.5 px-3 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-sm transition-all"
+                >
+                  <Search className="w-3.5 h-3.5" />
+                  <span>Localizar na Lista da Chamada</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const resumo = `Aluno: ${student.name}\nRA: ${student.registrationNumber}\nTurma: ${studentClass?.name || 'BMF4'}\nFrequência: ${academic.attendanceRate}%\nPresenças: ${academic.totalPresences} | Faltas: ${academic.totalAbsences}\nMédia BMF4: ${academic.partialAverage > 0 ? academic.partialAverage.toFixed(1) : 'S/N'}\nStatus Hoje: ${currentStatus === 'present' ? 'Presente' : currentStatus === 'late' ? 'Atrasado' : currentStatus === 'excused' ? 'Justificado' : 'Falta'}`;
+                    handleCopyText(resumo, `ficha-${student.id}`);
+                    setActionSuccessToast('Ficha do aluno copiada para a área de transferência!');
+                  }}
+                  className="py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer transition-all"
+                >
+                  <Copy className="w-3.5 h-3.5 text-slate-600" />
+                  <span>{copiedKey === `ficha-${student.id}` ? 'Ficha Copiada!' : 'Copiar Ficha Resumida'}</span>
+                </button>
+              </div>
+
+              {/* Direct email link if available */}
+              {student.email && (
+                <div className="pt-1 flex items-center justify-between text-xs text-slate-500">
+                  <span className="truncate max-w-[260px]">E-mail: <strong className="text-slate-700">{student.email}</strong></span>
+                  <a
+                    href={`mailto:${student.email}`}
+                    className="text-teal-600 hover:underline font-bold text-[11px] inline-flex items-center gap-1"
+                  >
+                    <Mail className="w-3 h-3" />
+                    <span>Contatar</span>
+                  </a>
+                </div>
+              )}
+
             </div>
           </div>
         );
       })()}
 
-      {/* Search Result Class Detail Modal */}
-      {searchedClassModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-slate-200 space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-teal-100 text-teal-800 flex items-center justify-center font-black">
-                  <Layers className="w-5 h-5" />
+      {/* Search Result Class Detail Modal (Informações Mais Importantes & Ações da Turma) */}
+      {searchedClassModal && (() => {
+        const cls = searchedClassModal;
+        const clsStudents = students.filter(s => s.classGroupId === cls.id);
+        const isCurrentActive = activeSession?.classGroupId === cls.id;
+        const presentCount = isCurrentActive 
+          ? clsStudents.filter(s => activeSession?.attendance?.[s.id]?.status === 'present').length
+          : 0;
+        const presenceRate = clsStudents.length > 0 ? Math.round((presentCount / clsStudents.length) * 100) : 0;
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/75 backdrop-blur-xs animate-in fade-in">
+            <div className="bg-white rounded-3xl p-5 sm:p-6 max-w-lg w-full max-h-[92vh] overflow-y-auto shadow-2xl border border-slate-200 space-y-4">
+              
+              {/* Top Header */}
+              <div className="flex items-start justify-between pb-3 border-b border-slate-100">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-12 h-12 rounded-2xl bg-teal-100 text-teal-800 flex items-center justify-center font-black shrink-0">
+                    <Layers className="w-6 h-6" />
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="text-base sm:text-lg font-black text-slate-900 leading-tight truncate">
+                      {cls.name}
+                    </h3>
+                    <div className="flex flex-wrap items-center gap-2 mt-1">
+                      <span className="px-2 py-0.5 rounded-lg bg-teal-50 text-teal-800 font-mono font-bold text-[11px] border border-teal-200">
+                        Código: {cls.code}
+                      </span>
+                      {cls.semester && (
+                        <span className="text-[11px] text-slate-500 font-semibold">
+                          {cls.semester}
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-base font-black text-slate-900">{searchedClassModal.name}</h3>
-                  <p className="text-xs font-mono text-slate-500">Código: {searchedClassModal.code}</p>
+
+                <button
+                  type="button"
+                  onClick={() => setSearchedClassModal(null)}
+                  className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer shrink-0"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Informações Mais Importantes da Turma */}
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200/80">
+                  <span className="text-slate-400 text-[10px] font-bold block uppercase">Total Matriculados</span>
+                  <strong className="text-slate-900 text-base font-black">{clsStudents.length} alunos</strong>
+                  <span className="text-[10px] text-slate-500 block mt-0.5">Turma regular BMF4</span>
+                </div>
+
+                <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200/80">
+                  <span className="text-slate-400 text-[10px] font-bold block uppercase">Presença na Aula Hoje</span>
+                  {isCurrentActive ? (
+                    <>
+                      <strong className="text-emerald-700 text-base font-black">{presentCount} presentes ({presenceRate}%)</strong>
+                      <span className="text-[10px] text-emerald-600 block mt-0.5">Sessão ao vivo em andamento</span>
+                    </>
+                  ) : (
+                    <>
+                      <strong className="text-slate-600 text-base font-black">Não iniciada</strong>
+                      <span className="text-[10px] text-slate-400 block mt-0.5">Pronta para chamada</span>
+                    </>
+                  )}
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={() => setSearchedClassModal(null)}
-                className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
 
-            <div className="space-y-3 text-xs">
-              <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 space-y-1.5">
-                <div className="flex justify-between">
+              <div className="p-3.5 bg-slate-50/90 rounded-2xl border border-slate-200/80 space-y-2 text-xs">
+                <div className="flex justify-between py-0.5 border-b border-slate-200/60">
                   <span className="text-slate-500 font-medium">Disciplina:</span>
-                  <strong className="text-slate-800">{searchedClassModal.discipline || 'BMF4'}</strong>
+                  <strong className="text-slate-800">{cls.discipline || 'BMF4 - Bases Morfofuncionais 4'}</strong>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex justify-between py-0.5 border-b border-slate-200/60">
+                  <span className="text-slate-500 font-medium">Laboratório Alocado:</span>
+                  <strong className="text-slate-800">{cls.laboratoryRoom || 'Lab. Morfologia e Práticas Médicas (Lab 04)'}</strong>
+                </div>
+                <div className="flex justify-between py-0.5 border-b border-slate-200/60">
                   <span className="text-slate-500 font-medium">Horário Padrão:</span>
-                  <strong className="text-slate-800">{searchedClassModal.schedule || '07:30 - 12:00'}</strong>
+                  <strong className="text-slate-800">{cls.schedule || 'Segunda a Sexta, 07:30 - 12:00'}</strong>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500 font-medium">Total de Alunos:</span>
-                  <strong className="text-slate-800">{students.filter(s => s.classGroupId === searchedClassModal.id).length} alunos</strong>
+                <div className="flex justify-between py-0.5">
+                  <span className="text-slate-500 font-medium">Docente Responsável:</span>
+                  <strong className="text-slate-800">{cls.professorName || activeProfessor?.name || 'Docente Titular'}</strong>
                 </div>
               </div>
 
-              <div className="flex gap-2 pt-1">
+              {/* Lista Rápida dos Alunos da Turma */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">
+                    Alunos da Turma ({clsStudents.length})
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-medium">Amostra alfabética</span>
+                </div>
+                <div className="max-h-36 overflow-y-auto rounded-2xl border border-slate-200 bg-white divide-y divide-slate-100 text-xs p-1">
+                  {clsStudents.length === 0 ? (
+                    <div className="p-4 text-center text-slate-400 text-xs">Nenhum aluno cadastrado nesta turma.</div>
+                  ) : (
+                    clsStudents.map(st => {
+                      const rec = activeSession?.attendance?.[st.id];
+                      const isPres = rec?.status === 'present';
+                      return (
+                        <div key={st.id} className="p-2 flex items-center justify-between hover:bg-slate-50 rounded-xl">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <StudentAvatar name={st.name} size="xs" />
+                            <span className="font-bold text-slate-800 truncate">{st.name}</span>
+                            <span className="text-[10px] font-mono text-slate-400">({st.registrationNumber})</span>
+                          </div>
+                          {isCurrentActive && (
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                              isPres ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'
+                            }`}>
+                              {isPres ? 'Presente' : 'Ausente'}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+
+              {/* Botões de Ação da Turma */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1">
                 <button
                   type="button"
                   onClick={() => {
-                    setSelectedClassId(searchedClassModal.id);
+                    setSelectedClassId(cls.id);
                     setSearchedClassModal(null);
                     setGlobalSearchTerm('');
                     playBeep('click');
+                    setActionSuccessToast(`Turma ${cls.name} selecionada na chamada!`);
                   }}
-                  className="flex-1 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
+                  className="py-2.5 px-3 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-sm transition-all"
                 >
                   <Check className="w-3.5 h-3.5" />
-                  <span>Selecionar Turma</span>
+                  <span>Abrir Chamada</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => {
-                    setSelectedClassId(searchedClassModal.id);
+                    setSelectedClassId(cls.id);
                     setSearchedClassModal(null);
                     setGlobalSearchTerm('');
                     onOpenProjectionScreen();
                   }}
-                  className="py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                  className="py-2.5 px-3 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-sm transition-all"
                 >
-                  <Tv className="w-3.5 h-3.5 text-teal-600" />
-                  <span>Telão</span>
+                  <Tv className="w-3.5 h-3.5" />
+                  <span>Projetar Telão</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedClassId(cls.id);
+                    setSearchedClassModal(null);
+                    setGlobalSearchTerm('');
+                    if (onOpenNewSession) {
+                      onOpenNewSession();
+                    } else {
+                      onOpenProjectionScreen();
+                    }
+                  }}
+                  className="col-span-2 sm:col-span-1 py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer transition-all"
+                >
+                  <Zap className="w-3.5 h-3.5 text-teal-600" />
+                  <span>Nova Aula</span>
                 </button>
               </div>
+
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
     </div>
   );

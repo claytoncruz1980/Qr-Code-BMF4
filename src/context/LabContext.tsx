@@ -682,75 +682,20 @@ export const useSessionReset = ({
 };
 
 export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  // Supabase Realtime Subscriptions for sessions, classes, students, and teachers
-  useEffect(() => {
-    const channel = supabase
-      .channel('public:all-tables')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'sessions' },
-        (payload) => {
-          console.log('🔄 Supabase Realtime [sessions]:', payload);
-          if (payload.new) {
-            const updated = payload.new as any;
-            setSessions(prev => {
-              const merged = mergeSessionLists(prev, [updated], deletedSessionIdsRef.current);
-              return reconcileSessionsAttendance(merged);
-            });
-          }
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'classes' },
-        (payload) => {
-          console.log('🔄 Supabase Realtime [classes]:', payload);
-          if (payload.new) {
-            const updated = payload.new as any;
-            setClasses(prev => sortClassesAlphabetically(mergeClassLists(prev, [updated], [])));
-          }
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'students' },
-        (payload) => {
-          console.log('🔄 Supabase Realtime [students]:', payload);
-          if (payload.new) {
-            const updated = payload.new as any;
-            setStudents(prev => computeStudentsWithRecalculatedStats(mergeStudentLists(prev, [updated], []), sessionsRef.current));
-          }
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'teachers' },
-        (payload) => {
-          console.log('🔄 Supabase Realtime [teachers]:', payload);
-          if (payload.new) {
-            const updated = payload.new as any;
-            setProfessors(prev => mergeProfessorLists(prev, [updated], []));
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
-
   // Initial data hydration from Supabase with safe merging and robust localStorage priority
   useEffect(() => {
     async function loadAllDataFromSupabase() {
       const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
-      console.log(`🔄 [PWA/App Hydration] Iniciando carga de dados. Online: ${isOnline}`);
+      console.log(`🔄 [PWA/App Hydration] Iniciando carga de dados do Supabase. Online: ${isOnline}`);
 
       try {
         const localClasses = JSON.parse(localStorage.getItem(STORAGE_PREFIX + 'classes') || '[]');
         const localStudents = JSON.parse(localStorage.getItem(STORAGE_PREFIX + 'students') || '[]');
         const localSessions = JSON.parse(localStorage.getItem(STORAGE_PREFIX + 'sessions') || '[]');
         const localTeachers = JSON.parse(localStorage.getItem(STORAGE_PREFIX + 'professors') || '[]');
+        const localJustifications = JSON.parse(localStorage.getItem(STORAGE_PREFIX + 'justifications') || '[]');
+        const localGrades = JSON.parse(localStorage.getItem(STORAGE_PREFIX + 'student_grades') || '[]');
+        const localSettings = JSON.parse(localStorage.getItem(STORAGE_PREFIX + 'settings') || 'null');
 
         // 1. Sessions
         try {
@@ -830,6 +775,73 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           }
         } catch (e: any) {
           console.error('❌ Supabase [teachers] exception:', e?.message || e);
+        }
+
+        // 5. Justifications
+        try {
+          const { data: justData, error: justErr } = await supabase.from('justifications').select('*');
+          if (!justErr && Array.isArray(justData) && justData.length > 0) {
+            const mappedJust = justData.map((j: any) => ({
+              id: j.id,
+              studentId: j.student_id || j.studentId,
+              studentName: j.student_name || j.studentName,
+              studentRa: j.student_ra || j.studentRa,
+              classGroupId: j.class_group_id || j.classGroupId,
+              sessionId: j.session_id || j.sessionId,
+              date: j.date,
+              period: j.period,
+              description: j.description,
+              status: j.status,
+              documentNumber: j.doc_number || j.docNumber,
+              attachmentName: j.attachment_name || j.attachmentName,
+              attachmentUrl: j.attachment_url || j.attachmentUrl,
+              reviewedAt: j.updated_at,
+              reviewedBy: j.reviewer_name,
+            }));
+            const merged = mergeJustificationLists(localJustifications.length > 0 ? localJustifications : INITIAL_JUSTIFICATIONS, mappedJust);
+            setJustifications(merged);
+            try {
+              localStorage.setItem(STORAGE_PREFIX + 'justifications', JSON.stringify(merged));
+            } catch {}
+          }
+        } catch (e: any) {
+          console.debug('Supabase [justifications] hydration notice:', e?.message || e);
+        }
+
+        // 6. Student Grades
+        try {
+          const { data: gradesData, error: gradesErr } = await supabase.from('student_grades').select('*');
+          if (!gradesErr && Array.isArray(gradesData) && gradesData.length > 0) {
+            const mappedGrades = gradesData.map((g: any) => ({
+              id: g.id,
+              studentId: g.student_id || g.studentId,
+              classGroupId: g.class_group_id || g.classGroupId,
+              scores: g.scores || {},
+              substituteExamScore: g.substitute_exam_score ?? g.substituteExamScore,
+              notes: g.notes,
+              updatedAt: g.updated_at,
+            }));
+            const merged = mergeGradeLists(localGrades.length > 0 ? localGrades : INITIAL_STUDENT_GRADES, mappedGrades);
+            setStudentGrades(merged);
+            try {
+              localStorage.setItem(STORAGE_PREFIX + 'student_grades', JSON.stringify(merged));
+            } catch {}
+          }
+        } catch (e: any) {
+          console.debug('Supabase [student_grades] hydration notice:', e?.message || e);
+        }
+
+        // 7. App Settings
+        try {
+          const { data: settingsData, error: settingsErr } = await supabase.from('app_settings').select('*').limit(1);
+          if (!settingsErr && Array.isArray(settingsData) && settingsData[0]?.settings_payload) {
+            setAppSettings(settingsData[0].settings_payload);
+            try {
+              localStorage.setItem(STORAGE_PREFIX + 'settings', JSON.stringify(settingsData[0].settings_payload));
+            } catch {}
+          }
+        } catch (e: any) {
+          console.debug('Supabase [app_settings] hydration notice:', e?.message || e);
         }
 
         console.log('✅ [PWA/App Hydration] Sincronização e fusão concluídas sem perda de dados.');
@@ -1828,6 +1840,22 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   }, []);
 
+  const deleteEntityFromSupabase = useCallback(async (table: string, idOrIds: string | string[]) => {
+    if (!navigator.onLine || !idOrIds) return;
+    try {
+      const ids = Array.isArray(idOrIds) ? idOrIds : [idOrIds];
+      if (ids.length === 0) return;
+      const { error } = await supabase.from(table).delete().in('id', ids);
+      if (error) {
+        console.warn(`⚠️ [Supabase Delete] Erro ao deletar de [${table}]:`, error.message);
+      } else {
+        console.log(`✅ [Supabase Delete] ${ids.length} registro(s) removido(s) de [${table}]`);
+      }
+    } catch (err: any) {
+      console.error(`❌ [Supabase Delete Exception] [${table}]:`, err?.message || err);
+    }
+  }, []);
+
   // Broadcast current state to Supabase, backend server and other devices
   const broadcastCurrentState = useCallback((statePayload: any) => {
     const enrichedPayload = {
@@ -2155,7 +2183,7 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }, 150);
   }, [getLocalLastUpdated, setLocalLastUpdated, broadcastCurrentState]);
 
-  // 14. Supabase Realtime Channel Subscription (postgres_changes & broadcast)
+  // 14. Supabase Realtime Channel Subscription (postgres_changes on all tables & broadcast)
   useEffect(() => {
     let channel: any = null;
     try {
@@ -2165,7 +2193,10 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           'postgres_changes',
           { event: '*', schema: 'public', table: 'sessions' },
           (payload: any) => {
-            if (payload && payload.new) {
+            if (payload.eventType === 'DELETE' && payload.old?.id) {
+              const delId = payload.old.id;
+              setSessions(prev => prev.filter(s => s.id !== delId));
+            } else if (payload && payload.new) {
               const cloudSession = payload.new as any;
               if (cloudSession && cloudSession.id) {
                 applySessionAttendanceFromCloud({
@@ -2193,6 +2224,132 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           }
         )
         .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'classes' },
+          (payload: any) => {
+            if (payload.eventType === 'DELETE' && payload.old?.id) {
+              const delId = payload.old.id;
+              setClasses(prev => prev.filter(c => c.id !== delId));
+            } else if (payload.new && payload.new.id) {
+              const raw = payload.new;
+              const mapped: ClassGroup = {
+                id: raw.id,
+                name: raw.name,
+                code: raw.code || raw.id,
+                discipline: raw.discipline || 'BMF4',
+                laboratoryRoom: raw.laboratory_room || raw.laboratoryRoom || 'Laboratório de Morfologia',
+                schedule: raw.schedule || 'Segunda a Sexta, 07:30 - 12:00',
+                color: raw.color || '#0d9488',
+                totalStudents: raw.total_students ?? raw.totalStudents ?? 0,
+                professorName: raw.professor_name || raw.professorName,
+                professorId: raw.professor_id || raw.professorId,
+                monitorName: raw.monitor_name || raw.monitorName,
+                semester: raw.semester || '4º Semestre 2026',
+                course: raw.course || 'Medicina',
+                institution: raw.institution || 'UNINOVE MEDICINA',
+              };
+              setClasses(prev => sortClassesAlphabetically(mergeClassLists(prev, [mapped], deletedClassIdsRef.current)));
+            }
+          }
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'students' },
+          (payload: any) => {
+            if (payload.eventType === 'DELETE' && payload.old?.id) {
+              const delId = payload.old.id;
+              setStudents(prev => prev.filter(s => s.id !== delId));
+            } else if (payload.new && payload.new.id) {
+              const raw = payload.new;
+              const mapped: Student = {
+                id: raw.id,
+                name: raw.name,
+                registrationNumber: raw.registration_number || raw.registrationNumber || '',
+                email: raw.email || '',
+                discipline: raw.discipline || 'BMF4',
+                course: raw.course || 'Medicina',
+                classGroupId: raw.class_group_id || raw.classGroupId || '',
+                notes: raw.notes,
+                avatarUrl: raw.avatar_url,
+                presences: raw.presences ?? 0,
+                absences: raw.absences ?? 0,
+                lates: raw.lates ?? 0,
+                excused: raw.excused ?? 0,
+                totalClasses: raw.total_classes ?? 0,
+              };
+              setStudents(prev => computeStudentsWithRecalculatedStats(mergeStudentLists(prev, [mapped], deletedStudentIdsRef.current), sessionsRef.current));
+            }
+          }
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'teachers' },
+          (payload: any) => {
+            if (payload.eventType === 'DELETE' && payload.old?.id) {
+              const delId = payload.old.id;
+              setProfessors(prev => prev.filter(p => p.id !== delId));
+            } else if (payload.new && payload.new.id) {
+              const raw = payload.new;
+              const mapped: Professor = {
+                id: raw.id,
+                name: raw.name,
+                email: raw.email,
+                registrationNumber: raw.registration_number,
+                discipline: raw.discipline || 'BMF4',
+                pin: raw.pin || '1234',
+                role: raw.role || 'professor',
+                phone: raw.phone,
+                assignedClassIds: raw.assigned_class_ids || [],
+                hasChangedPin: raw.has_changed_pin || false,
+              };
+              setProfessors(prev => mergeProfessorLists(prev, [mapped], deletedProfessorIdsRef.current));
+            }
+          }
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'justifications' },
+          (payload: any) => {
+            if (payload.eventType === 'DELETE' && payload.old?.id) {
+              const delId = payload.old.id;
+              setJustifications(prev => prev.filter(j => j.id !== delId));
+            } else if (payload.new && payload.new.id) {
+              const mapped = payload.new as JustificationRequest;
+              setJustifications(prev => mergeJustificationLists(prev, [mapped]));
+            }
+          }
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'student_grades' },
+          (payload: any) => {
+            if (payload.eventType === 'DELETE' && payload.old?.id) {
+              const delId = payload.old.id;
+              setStudentGrades(prev => prev.filter(g => (g as any).id !== delId && `${g.studentId}_${g.classGroupId}` !== delId));
+            } else if (payload.new && payload.new.student_id) {
+              const raw = payload.new;
+              const mapped: StudentGradeRecord = {
+                studentId: raw.student_id,
+                classGroupId: raw.class_group_id,
+                scores: raw.scores || {},
+                substituteExamScore: raw.substitute_exam_score,
+                notes: raw.notes,
+                updatedAt: raw.updated_at,
+              };
+              setStudentGrades(prev => mergeGradeLists(prev, [mapped]));
+            }
+          }
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'app_settings' },
+          (payload: any) => {
+            if (payload.new && payload.new.settings_payload) {
+              setAppSettings(payload.new.settings_payload);
+            }
+          }
+        )
+        .on(
           'broadcast',
           { event: 'sync_state' },
           (payload: any) => {
@@ -2205,6 +2362,7 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         .subscribe((status: string) => {
           if (status === 'SUBSCRIBED') {
             setRealtimeConnected(true);
+            console.log('⚡ [Supabase Realtime] Canal bmf4_attendance_realtime inscrito com sucesso.');
           }
         });
 
@@ -5207,6 +5365,12 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     try {
       localStorage.setItem(STORAGE_PREFIX + 'professors', JSON.stringify(updatedProfs));
     } catch {}
+
+    const targetProf = updatedProfs.find(p => p.id === id);
+    if (targetProf) {
+      syncEntityToSupabase('teachers', targetProf);
+    }
+
     const now = Date.now();
     setLocalLastUpdated(now);
     broadcastCurrentState({
@@ -5248,6 +5412,8 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     try {
       localStorage.setItem(STORAGE_PREFIX + 'professors', JSON.stringify(remainingProfs));
     } catch {}
+
+    deleteEntityFromSupabase('teachers', id);
 
     const newDeletedProfIds = Array.from(new Set([...deletedProfessorIdsRef.current, id]));
     setDeletedProfessorIds(newDeletedProfIds);
@@ -5354,6 +5520,11 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       localStorage.setItem(STORAGE_PREFIX + 'student_grades', JSON.stringify(updatedGrades));
     } catch {}
 
+    const targetGradeToSync = updatedGrades.find(g => g.studentId === studentId && g.classGroupId === targetClassId);
+    if (targetGradeToSync) {
+      syncEntityToSupabase('student_grades', targetGradeToSync);
+    }
+
     const now = Date.now();
     setLocalLastUpdated(now);
     broadcastCurrentState({
@@ -5405,6 +5576,11 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       localStorage.setItem(STORAGE_PREFIX + 'student_grades', JSON.stringify(updatedGrades));
     } catch {}
 
+    const targetSubGradeToSync = updatedGrades.find(g => g.studentId === studentId && g.classGroupId === targetClassId);
+    if (targetSubGradeToSync) {
+      syncEntityToSupabase('student_grades', targetSubGradeToSync);
+    }
+
     const now = Date.now();
     setLocalLastUpdated(now);
     broadcastCurrentState({
@@ -5437,6 +5613,11 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     try {
       localStorage.setItem(STORAGE_PREFIX + 'student_grades', JSON.stringify(updatedGrades));
     } catch {}
+
+    const targetNotesGradeToSync = updatedGrades.find(g => g.studentId === studentId && g.classGroupId === targetClassId);
+    if (targetNotesGradeToSync) {
+      syncEntityToSupabase('student_grades', targetNotesGradeToSync);
+    }
 
     const now = Date.now();
     setLocalLastUpdated(now);
@@ -5639,6 +5820,9 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       localStorage.setItem(STORAGE_PREFIX + 'students', JSON.stringify(updatedStudents));
     } catch {}
 
+    deleteEntityFromSupabase('students', id);
+    deleteEntityFromSupabase('attendance_records', id);
+
     const newDeletedStudentIds = Array.from(new Set([...deletedStudentIdsRef.current, id]));
     setDeletedStudentIds(newDeletedStudentIds);
     deletedStudentIdsRef.current = newDeletedStudentIds;
@@ -5747,6 +5931,9 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       localStorage.setItem(STORAGE_PREFIX + 'students', JSON.stringify(updatedStudents));
     } catch {}
 
+    deleteEntityFromSupabase('students', ids);
+    deleteEntityFromSupabase('attendance_records', ids);
+
     const newDeletedStudentIds = Array.from(new Set([...deletedStudentIdsRef.current, ...ids]));
     setDeletedStudentIds(newDeletedStudentIds);
     deletedStudentIdsRef.current = newDeletedStudentIds;
@@ -5817,6 +6004,11 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     try {
       localStorage.setItem(STORAGE_PREFIX + 'students', JSON.stringify(updatedStudents));
     } catch {}
+
+    if (studentIdsArr.length > 0) {
+      deleteEntityFromSupabase('students', studentIdsArr);
+      deleteEntityFromSupabase('attendance_records', studentIdsArr);
+    }
 
     const newDeletedStudentIds = Array.from(new Set([...deletedStudentIdsRef.current, ...studentIdsArr]));
     setDeletedStudentIds(newDeletedStudentIds);
@@ -5892,6 +6084,11 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       localStorage.setItem(STORAGE_PREFIX + 'students', '[]');
     } catch {}
 
+    if (allIds.length > 0) {
+      deleteEntityFromSupabase('students', allIds);
+      deleteEntityFromSupabase('attendance_records', allIds);
+    }
+
     const newDeletedStudentIds = Array.from(new Set([...deletedStudentIdsRef.current, ...allIds]));
     setDeletedStudentIds(newDeletedStudentIds);
     deletedStudentIdsRef.current = newDeletedStudentIds;
@@ -5953,6 +6150,8 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     try {
       localStorage.setItem(STORAGE_PREFIX + 'students', JSON.stringify(updatedStudents));
     } catch {}
+
+    syncEntityToSupabase('students', created);
 
     const now = Date.now();
     setLocalLastUpdated(now);
@@ -6066,6 +6265,11 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       localStorage.setItem(STORAGE_PREFIX + 'classes', JSON.stringify(updatedClasses));
     } catch {}
 
+    const targetClass = updatedClasses.find(c => c.id === id);
+    if (targetClass) {
+      syncEntityToSupabase('classes', targetClass);
+    }
+
     const now = Date.now();
     setLocalLastUpdated(now);
     broadcastCurrentState({
@@ -6095,6 +6299,8 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       } catch {}
     }
 
+    deleteEntityFromSupabase('classes', id);
+
     const newDeletedClassIds = Array.from(new Set([...deletedClassIdsRef.current, id]));
     setDeletedClassIds(newDeletedClassIds);
     deletedClassIdsRef.current = newDeletedClassIds;
@@ -6110,6 +6316,9 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     const removedSessions = sessions.filter(s => s.classGroupId === id);
     const removedSessionIds = removedSessions.map(s => s.id);
+    if (removedSessionIds.length > 0) {
+      deleteEntityFromSupabase('sessions', removedSessionIds);
+    }
     const newDeletedSessionIds = Array.from(new Set([...deletedSessionIdsRef.current, ...removedSessionIds]));
     setDeletedSessionIds(newDeletedSessionIds);
     deletedSessionIdsRef.current = newDeletedSessionIds;
@@ -6130,6 +6339,9 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (deleteAssociatedStudents) {
       const removedStudentsList = students.filter(s => s.classGroupId === id);
       const removedStudentIds = new Set(removedStudentsList.map(s => s.id));
+      if (removedStudentsList.length > 0) {
+        deleteEntityFromSupabase('students', Array.from(removedStudentIds));
+      }
       newDeletedStudentIds = Array.from(new Set([...deletedStudentIdsRef.current, ...Array.from(removedStudentIds)]));
       setDeletedStudentIds(newDeletedStudentIds);
       deletedStudentIdsRef.current = newDeletedStudentIds;
@@ -6329,6 +6541,15 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const nowTimestamp = Date.now();
     setLocalLastUpdated(nowTimestamp);
     syncSessionVersionToFirestore(newSession, 1);
+
+    // Close previous live sessions of this class on Supabase as well
+    const prevSessionsToClose = sessions.filter(s => s.classGroupId === targetClassId && s.isLive);
+    if (prevSessionsToClose.length > 0) {
+      prevSessionsToClose.forEach(ps => {
+        syncSessionVersionToFirestore({ ...ps, isLive: false, isLocked: true, isPaused: false });
+      });
+    }
+
     broadcastCurrentState({
       professors,
       activeProfessorId: targetProfId || activeProfessorId,
@@ -6345,11 +6566,23 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const updateSession = (sessionId: string, updates: Partial<LabSession>) => {
-    const updated = sessions.map(s => s.id === sessionId ? { ...s, ...updates } : s);
+    let updatedSessionToSync: LabSession | null = null;
+    const updated = sessions.map(s => {
+      if (s.id === sessionId) {
+        const up = { ...s, ...updates, lastUpdateTimestamp: Date.now() };
+        updatedSessionToSync = up;
+        return up;
+      }
+      return s;
+    });
     setSessions(updated);
     try {
       localStorage.setItem(STORAGE_PREFIX + 'sessions', JSON.stringify(updated));
     } catch {}
+
+    if (updatedSessionToSync) {
+      syncSessionVersionToFirestore(updatedSessionToSync);
+    }
 
     const now = Date.now();
     setLocalLastUpdated(now);
@@ -6370,6 +6603,7 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const deleteSession = (sessionId: string) => {
     if (!sessionId) return;
     clearActiveSessionCache();
+    deleteEntityFromSupabase('sessions', sessionId);
     const targetSession = sessions.find(s => s.id === sessionId);
     if (targetSession) archiveSessionsToTrash([targetSession]);
 
@@ -6432,6 +6666,7 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const deleteMultipleSessions = (sessionIds: string[]) => {
     if (!Array.isArray(sessionIds) || sessionIds.length === 0) return;
     clearActiveSessionCache();
+    deleteEntityFromSupabase('sessions', sessionIds);
     const idsSet = new Set(sessionIds);
     const sessionsToArchive = sessions.filter(s => idsSet.has(s.id));
     archiveSessionsToTrash(sessionsToArchive);
@@ -6790,6 +7025,9 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     archiveSessionsToTrash(classSessionsToDelete);
 
     const idsToDelete = classSessionsToDelete.map(s => s.id);
+    if (idsToDelete.length > 0) {
+      deleteEntityFromSupabase('sessions', idsToDelete);
+    }
     const newDeletedIds = Array.from(new Set([...deletedSessionIdsRef.current, ...idsToDelete]));
     setDeletedSessionIds(newDeletedIds);
     deletedSessionIdsRef.current = newDeletedIds;
@@ -6966,6 +7204,11 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       } catch {}
     }
 
+    const updatedJustRec = updatedJustifications.find(j => j.id === justificationId);
+    if (updatedJustRec) {
+      syncEntityToSupabase('justifications', updatedJustRec);
+    }
+
     const now = Date.now();
     setLocalLastUpdated(now);
     broadcastCurrentState({
@@ -7024,6 +7267,8 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       localStorage.setItem(STORAGE_PREFIX + 'justifications', JSON.stringify(updated));
     } catch {}
 
+    syncEntityToSupabase('justifications', newJust);
+
     const now = Date.now();
     setLocalLastUpdated(now);
     broadcastCurrentState({
@@ -7049,6 +7294,8 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       localStorage.setItem(STORAGE_PREFIX + 'justifications', JSON.stringify(updated));
     } catch {}
 
+    deleteEntityFromSupabase('justifications', justificationId);
+
     const now = Date.now();
     setLocalLastUpdated(now);
     broadcastCurrentState({
@@ -7073,6 +7320,8 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     try {
       localStorage.setItem(STORAGE_PREFIX + 'settings', JSON.stringify(updated));
     } catch {}
+
+    syncEntityToSupabase('app_settings', { id: 'global_settings', settings_payload: updated });
 
     const now = Date.now();
     setLocalLastUpdated(now);
@@ -7139,6 +7388,26 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const now = Date.now();
     setLocalLastUpdated(now);
     setLastSyncTimestamp(now);
+
+    // Direct Cloud Wipe on Supabase tables to ensure PC and Mobile stay 100% in sync without ghost data
+    if (navigator.onLine) {
+      Promise.allSettled([
+        supabase.from('sessions').delete().neq('id', '_keep_none_'),
+        supabase.from('students').delete().neq('id', '_keep_none_'),
+        supabase.from('classes').delete().neq('id', '_keep_none_'),
+        supabase.from('justifications').delete().neq('id', '_keep_none_'),
+        supabase.from('student_grades').delete().neq('id', '_keep_none_'),
+        supabase.from('attendance_records').delete().neq('id', '_keep_none_'),
+        supabase.from('app_settings').delete().neq('id', '_keep_none_'),
+        supabase.from('teachers').delete().neq('id', blankAdmin.id),
+      ]).then(() => {
+        syncEntityToSupabase('teachers', blankAdmin);
+        syncEntityToSupabase('app_settings', { id: 'global_settings', settings_payload: DEFAULT_SETTINGS });
+        console.log('✅ [Supabase Limpa Tudo] Todas as tabelas no Supabase foram zeradas com sucesso.');
+      }).catch(err => {
+        console.warn('⚠️ [Supabase Limpa Tudo Notice]:', err);
+      });
+    }
 
     broadcastCurrentState({
       professors: [blankAdmin],

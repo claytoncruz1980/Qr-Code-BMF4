@@ -38,10 +38,15 @@ import {
   Calendar,
   FileText,
   FileJson,
-  Upload
+  Upload,
+  Copy,
+  ExternalLink,
+  Terminal
 } from 'lucide-react';
 import { useLab } from '../context/LabContext';
 import { AntiFraudMode, DeviceType } from '../types';
+import { runSupabaseAudit, getSupabaseMigrationSQL, SupabaseAuditReport } from '../utils/supabaseAuditor';
+import { getSupabaseUrl, getSupabaseAnonKey, saveSupabaseConfig, isSupabaseConfigured, TARGET_SUPABASE_PROJECT_URL, supabase } from '../lib/supabase';
 
 interface SettingsViewProps {
   onOpenGoogleCalendar?: () => void;
@@ -180,6 +185,145 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [strictDeviceBinding, setStrictDeviceBinding] = useState<boolean>(appSettings.strictDeviceBinding ?? true);
   const [allowSelfReg, setAllowSelfReg] = useState<boolean>(appSettings.allowSelfRegistration ?? true);
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+
+  // Supabase Audit & Diagnostic State
+  const [auditReport, setAuditReport] = useState<SupabaseAuditReport | null>(null);
+  const [isAuditing, setIsAuditing] = useState(false);
+  const [supabaseAnonKeyInput, setSupabaseAnonKeyInput] = useState(() => {
+    const k = getSupabaseAnonKey();
+    return k.includes('placeholder') ? '' : k;
+  });
+  const [copiedSqlSuccess, setCopiedSqlSuccess] = useState(false);
+  const [syncAllSupabaseLoading, setSyncAllSupabaseLoading] = useState(false);
+
+  const handleRunAudit = async () => {
+    setIsAuditing(true);
+    try {
+      const rep = await runSupabaseAudit();
+      setAuditReport(rep);
+      showFeedback(rep.summary);
+    } catch (e: any) {
+      showFeedback('Erro ao auditar Supabase: ' + (e?.message || e));
+    } finally {
+      setIsAuditing(false);
+    }
+  };
+
+  const handleSaveAnonKey = () => {
+    if (!supabaseAnonKeyInput.trim()) {
+      showFeedback('Digite a chave Anon Key do projeto Supabase.');
+      return;
+    }
+    saveSupabaseConfig(TARGET_SUPABASE_PROJECT_URL, supabaseAnonKeyInput.trim());
+    showFeedback('Chave Anon salva! Executando auditoria do banco...');
+    handleRunAudit();
+  };
+
+  const handleCopyMigrationSql = () => {
+    const sql = getSupabaseMigrationSQL();
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(sql);
+      setCopiedSqlSuccess(true);
+      playBeep('confirm');
+      showFeedback('Script SQL completo copiado! Cole no SQL Editor do Supabase.');
+      setTimeout(() => setCopiedSqlSuccess(false), 3500);
+    }
+  };
+
+  const handlePushAllToSupabase = async () => {
+    setSyncAllSupabaseLoading(true);
+    try {
+      if (classes.length > 0) {
+        await supabase.from('classes').upsert(classes.map(c => ({
+          id: c.id,
+          name: c.name,
+          code: c.code,
+          discipline: c.discipline || 'BMF4',
+          laboratory_room: c.laboratoryRoom,
+          schedule: c.schedule,
+          total_students: c.totalStudents,
+          professor_name: c.professorName,
+          professor_id: c.professorId,
+        })), { onConflict: 'id' });
+      }
+      if (students.length > 0) {
+        await supabase.from('students').upsert(students.map(s => ({
+          id: s.id,
+          name: s.name,
+          registration_number: s.registrationNumber,
+          email: s.email,
+          class_group_id: s.classGroupId,
+          discipline: s.discipline,
+          course: s.course,
+        })), { onConflict: 'id' });
+      }
+      if (professors.length > 0) {
+        await supabase.from('teachers').upsert(professors.map(p => ({
+          id: p.id,
+          name: p.name,
+          email: p.email,
+          pin: p.pin,
+          role: p.role,
+        })), { onConflict: 'id' });
+      }
+      if (sessions.length > 0) {
+        await supabase.from('sessions').upsert(sessions.map(s => ({
+          id: s.id,
+          class_group_id: s.classGroupId,
+          topic: s.topic,
+          date: s.date,
+          start_time: s.startTime,
+          attendance: s.attendance,
+          is_live: s.isLive,
+          is_locked: s.isLocked,
+          active_period: s.activePeriod,
+          version: s.version || 1,
+          last_update_timestamp: s.lastUpdateTimestamp || Date.now(),
+        })), { onConflict: 'id' });
+      }
+      if (justifications && justifications.length > 0) {
+        await supabase.from('justifications').upsert(justifications.map(j => ({
+          id: j.id,
+          student_id: j.studentId,
+          student_name: j.studentName,
+          student_ra: j.studentRa,
+          class_group_id: j.classGroupId,
+          session_id: j.sessionId,
+          date: j.date,
+          period: j.period,
+          description: j.description,
+          status: j.status,
+          doc_number: j.documentNumber,
+          attachment_name: j.attachmentName,
+          attachment_url: j.attachmentUrl,
+        })), { onConflict: 'id' });
+      }
+      if (studentGrades && studentGrades.length > 0) {
+        await supabase.from('student_grades').upsert(studentGrades.map(g => ({
+          id: (g as any).id || `${g.studentId}_${g.classGroupId}`,
+          student_id: g.studentId,
+          class_group_id: g.classGroupId,
+          scores: g.scores || {},
+          substitute_exam_score: g.substituteExamScore,
+          notes: g.notes,
+          updated_at: g.updatedAt || new Date().toISOString(),
+        })), { onConflict: 'id' });
+      }
+      if (appSettings) {
+        await supabase.from('app_settings').upsert({
+          id: 'global_settings',
+          settings_payload: appSettings,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'id' });
+      }
+      showFeedback('Todos os dados (turmas, alunos, sessões, notas) foram salvos no Supabase!');
+      await handleRunAudit();
+    } catch (err: any) {
+      showFeedback('Erro ao enviar dados para o Supabase: ' + (err?.message || err));
+    } finally {
+      setSyncAllSupabaseLoading(false);
+    }
+  };
 
   const showFeedback = (msg: string) => {
     setFeedbackMessage(msg);
@@ -600,6 +744,192 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <span>{isSyncing ? 'Sincronizando...' : 'Forçar Sincronização Agora'}</span>
             </button>
           </div>
+        </div>
+
+        {/* ========================================================================= */}
+        {/* Auditoria Completa do Banco Supabase & Central de Migrações */}
+        {/* ========================================================================= */}
+        <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/90 shadow-xs space-y-5">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div>
+              <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <Database className="w-5 h-5 text-emerald-600" />
+                Auditoria do Banco Supabase & Central de Migrações
+              </h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Projeto Oficial: <span className="font-mono font-bold text-slate-800">{TARGET_SUPABASE_PROJECT_URL}</span>
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${
+                realtimeConnected 
+                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' 
+                  : 'bg-amber-100 text-amber-800 border border-amber-200'
+              }`}>
+                <span className={`w-2 h-2 rounded-full ${realtimeConnected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
+                {realtimeConnected ? 'Supabase Realtime Ativo' : 'Realtime Reconectando'}
+              </span>
+            </div>
+          </div>
+
+          {/* Banner Explicativo 'No migrations' do Painel Supabase */}
+          <div className="p-4 rounded-2xl bg-amber-50/80 border border-amber-200 text-xs text-amber-900 space-y-1.5">
+            <div className="font-bold flex items-center gap-1.5 text-amber-950">
+              <Info className="w-4 h-4 text-amber-700 shrink-0" />
+              <span>Por que o seu painel do Supabase exibe "No migrations"?</span>
+            </div>
+            <p className="text-[11.5px] leading-relaxed text-amber-800">
+              A aba <strong>"Migrations"</strong> no dashboard do Supabase só registra migrações quando executadas através do CLI de desenvolvedor (<code>supabase db push</code>). As tabelas do aplicativo (turmas, alunos, sessões, presenças e notas) são criadas e ativadas diretamente através do <strong>SQL Editor</strong> do Supabase. Copie o script SQL abaixo e cole no SQL Editor para criar ou atualizar todas as tabelas instantaneamente!
+            </p>
+          </div>
+
+          {/* Chave de Conexão Supabase Anon Key */}
+          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                  <Lock className="w-3.5 h-3.5 text-slate-500" />
+                  Chave Pública Anon Key do Supabase (Vercel & Browser)
+                </label>
+                <p className="text-[11px] text-slate-500">
+                  Encontrada no painel Supabase em: <em>Project Settings &gt; API &gt; Project API keys &gt; anon/public</em>
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleSaveAnonKey}
+                className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-all active:scale-95 cursor-pointer shadow-xs shrink-0"
+              >
+                Salvar Chave & Auditar
+              </button>
+            </div>
+            <input
+              type="password"
+              value={supabaseAnonKeyInput}
+              onChange={(e) => setSupabaseAnonKeyInput(e.target.value)}
+              placeholder="Cole a chave anon key (eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...)"
+              className="w-full px-3 py-2 bg-white rounded-xl border border-slate-300 text-xs font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            />
+          </div>
+
+          {/* Botões de Ação Direta */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 pt-1">
+            <button
+              type="button"
+              onClick={handleRunAudit}
+              disabled={isAuditing}
+              className="px-3.5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all active:scale-95 cursor-pointer disabled:opacity-50 shadow-xs"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isAuditing ? 'animate-spin text-emerald-400' : ''}`} />
+              <span>{isAuditing ? 'Verificando Banco...' : 'Auditar Tabelas Agora'}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleCopyMigrationSql}
+              className="px-3.5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all active:scale-95 cursor-pointer shadow-xs"
+            >
+              {copiedSqlSuccess ? (
+                <>
+                  <Check className="w-3.5 h-3.5 text-white" />
+                  <span>Script SQL Copiado!</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="w-3.5 h-3.5 text-white" />
+                  <span>Copiar Script SQL Completo</span>
+                </>
+              )}
+            </button>
+
+            <a
+              href="https://supabase.com/dashboard/project/yigwabbmjvzjajtwjkho/sql/new"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-3.5 py-2.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all active:scale-95 shadow-xs"
+            >
+              <ExternalLink className="w-3.5 h-3.5 text-white" />
+              <span>Abrir SQL Editor Supabase</span>
+            </a>
+
+            <button
+              type="button"
+              onClick={handlePushAllToSupabase}
+              disabled={syncAllSupabaseLoading}
+              className="px-3.5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all active:scale-95 cursor-pointer disabled:opacity-50 shadow-xs"
+            >
+              <UploadCloud className={`w-3.5 h-3.5 ${syncAllSupabaseLoading ? 'animate-spin' : ''}`} />
+              <span>{syncAllSupabaseLoading ? 'Salvando na Nuvem...' : 'Gravar Dados no Supabase'}</span>
+            </button>
+          </div>
+
+          {/* Relatório de Auditoria e Status das 8 Tabelas */}
+          {auditReport && (
+            <div className="space-y-3 pt-2">
+              <div className={`p-3.5 rounded-2xl border text-xs flex items-center justify-between ${
+                auditReport.overallStatus === 'healthy'
+                  ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                  : auditReport.overallStatus === 'missing_tables'
+                  ? 'bg-amber-50 border-amber-200 text-amber-900'
+                  : 'bg-rose-50 border-rose-200 text-rose-900'
+              }`}>
+                <div className="flex items-center gap-2">
+                  {auditReport.overallStatus === 'healthy' ? (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  ) : (
+                    <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                  )}
+                  <span className="font-semibold">{auditReport.summary}</span>
+                </div>
+                <span className="text-[11px] font-mono text-slate-500 shrink-0 ml-2">
+                  {new Date(auditReport.timestamp).toLocaleTimeString()}
+                </span>
+              </div>
+
+              {/* Grid das 8 Tabelas Essenciais */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                {[
+                  { key: 'classes', label: 'Turmas (classes)' },
+                  { key: 'sessions', label: 'Chamadas (sessions)' },
+                  { key: 'students', label: 'Alunos (students)' },
+                  { key: 'teachers', label: 'Docentes (teachers)' },
+                  { key: 'attendance_records', label: 'Presenças (records)' },
+                  { key: 'justifications', label: 'Atestados (justif.)' },
+                  { key: 'student_grades', label: 'Notas BMF4 (grades)' },
+                  { key: 'app_settings', label: 'Configurações (settings)' },
+                ].map(({ key, label }) => {
+                  const tStatus = auditReport.tables[key];
+                  const exists = tStatus?.exists ?? false;
+                  return (
+                    <div 
+                      key={key} 
+                      className={`p-3 rounded-2xl border transition-all ${
+                        exists 
+                          ? 'bg-emerald-50/60 border-emerald-200 text-emerald-950' 
+                          : 'bg-rose-50/60 border-rose-200 text-rose-950'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-1 mb-1">
+                        <span className="text-[11px] font-black truncate">{label}</span>
+                        <span className={`w-2 h-2 rounded-full ${exists ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                      </div>
+                      <div className="text-[10px] text-slate-600">
+                        {exists ? (
+                          <span className="text-emerald-700 font-bold">
+                            Ativa • {tStatus?.rowCount ?? 0} registros
+                          </span>
+                        ) : (
+                          <span className="text-rose-600 font-bold">
+                            Tabela Ausente
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* ========================================================================= */}
