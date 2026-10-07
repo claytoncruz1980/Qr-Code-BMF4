@@ -52,43 +52,8 @@ export const INITIAL_PROFESSORS: Professor[] = [
   }
 ];
 
-export const BMF4_CLASS_IDS = {
-  TURMA_A: 'class-bmf4-turmaa',
-  TURMA_B: 'class-bmf4-turmab',
-} as const;
 
-export const INITIAL_CLASSES: ClassGroup[] = [
-  {
-    id: 'class-bmf4-turmaa',
-    institution: 'UNINOVE MEDICINA',
-    code: 'TURMA-A',
-    name: 'Turma A',
-    discipline: 'BMF4 - Bases Morfofuncionais 4',
-    course: 'Medicina',
-    semester: '4º Semestre 2026',
-    laboratoryRoom: 'Laboratório de Morfologia / Práticas Médicas',
-    professorName: 'Prof. Dr. Juliano Pereira',
-    professorId: 'prof-admin-1',
-    schedule: '07:30 - 12:00',
-    color: '#0284c7',
-    totalStudents: 0,
-  },
-  {
-    id: 'class-bmf4-turmab',
-    institution: 'UNINOVE MEDICINA',
-    code: 'TURMA-B',
-    name: 'Turma B',
-    discipline: 'BMF4 - Bases Morfofuncionais 4',
-    course: 'Medicina',
-    semester: '4º Semestre 2026',
-    laboratoryRoom: 'Laboratório de Morfologia / Práticas Médicas',
-    professorName: 'Dra. Carolina Mendes',
-    professorId: 'prof-docente-2',
-    schedule: '13:30 - 18:00',
-    color: '#0d9488',
-    totalStudents: 0,
-  }
-];
+export const INITIAL_CLASSES: ClassGroup[] = [];
 
 export const INITIAL_STUDENTS: Student[] = [];
 
