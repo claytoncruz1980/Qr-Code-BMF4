@@ -1432,6 +1432,7 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       ? 'client_' + Math.random().toString(36).substring(2, 9) + '_' + Date.now().toString(36)
       : 'server_client'
   );
+  const realtimeBroadcastChannelRef = useRef<any>(null);
 
   // 12. Firestore Outbox Offline Attendance Queue
   const [outboxQueue, setOutboxQueue] = useState<AttendanceOutboxItem[]>(() => {
@@ -1854,11 +1855,19 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     // 2. Supabase Realtime Broadcast Channel
     try {
-      supabase.channel('bmf4_attendance_realtime').send({
-        type: 'broadcast',
-        event: 'sync_state',
-        payload: enrichedPayload,
-      });
+      if (realtimeBroadcastChannelRef.current) {
+        realtimeBroadcastChannelRef.current.send({
+          type: 'broadcast',
+          event: 'sync_state',
+          payload: enrichedPayload,
+        });
+      } else {
+        supabase.channel('bmf4_attendance_realtime').send({
+          type: 'broadcast',
+          event: 'sync_state',
+          payload: enrichedPayload,
+        });
+      }
     } catch {}
 
     // 3. Background HTTP POST sync
@@ -2198,11 +2207,14 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             setRealtimeConnected(true);
           }
         });
+
+      realtimeBroadcastChannelRef.current = channel;
     } catch (err) {
       console.debug('Supabase realtime subscription notice:', err);
     }
 
     return () => {
+      realtimeBroadcastChannelRef.current = null;
       if (channel) {
         supabase.removeChannel(channel);
       }
