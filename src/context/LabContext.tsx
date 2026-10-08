@@ -1828,14 +1828,57 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     try {
       const records = Array.isArray(recordOrRecords) ? recordOrRecords : [recordOrRecords];
       if (records.length === 0) return;
-      
-      const mappedRecords = records.map(r => mapRecordForSupabase(table, r));
-      const sanitizedRecords = validateAndSanitizeBatch(table, mappedRecords);
+
+      const recordIds = records.map((r: any) => r.id).filter(Boolean);
+      let remoteMap = new Map<string, any>();
+
+      if (recordIds.length > 0) {
+        const { data: remoteData, error: fetchErr } = await supabase
+          .from(table)
+          .select('*')
+          .in('id', recordIds);
+
+        if (!fetchErr && Array.isArray(remoteData)) {
+          remoteData.forEach((row: any) => {
+            remoteMap.set(row.id, row);
+          });
+        }
+      }
+
+      const recordsToUpsert = [];
+      const nowMs = Date.now();
+
+      for (const r of records) {
+        const remoteRec = r.id ? remoteMap.get(r.id) : null;
+        const localTs = r.lastUpdateTimestamp || r.last_update_timestamp || nowMs;
+        const remoteTs = remoteRec?.last_update_timestamp || remoteRec?.updated_at 
+          ? new Date(remoteRec.last_update_timestamp || remoteRec.updated_at).getTime() 
+          : 0;
+
+        // Revalidação Otimista: se a versão remota for mais recente que a local, evitamos conflitos/sobrescrita cega
+        if (remoteRec && remoteTs > localTs) {
+          console.log(`🛡️ [Optimistic Revalidation] Conflito evitado em [${table}]: registro remoto (${remoteTs}) é mais recente que o local (${localTs}) para ID ${r.id}`);
+          continue;
+        }
+
+        const enhancedRecord = {
+          ...r,
+          last_update_timestamp: nowMs,
+          version: (remoteRec?.version || r.version || 0) + 1,
+        };
+
+        const mapped = mapRecordForSupabase(table, enhancedRecord);
+        recordsToUpsert.push(mapped);
+      }
+
+      if (recordsToUpsert.length === 0) return;
+
+      const sanitizedRecords = validateAndSanitizeBatch(table, recordsToUpsert);
       const { error } = await supabase.from(table).upsert(sanitizedRecords, { onConflict: 'id' });
       if (error) {
         console.warn(`⚠️ Supabase upsert warning for [${table}]:`, error.message, error.code);
       } else {
-        console.log(`✅ Supabase upsert success for [${table}]: ${sanitizedRecords.length} registos`);
+        console.log(`✅ Supabase upsert success with Optimistic Revalidation for [${table}]: ${sanitizedRecords.length} registos`);
       }
     } catch (err: any) {
       console.error(`❌ Supabase upsert exception for [${table}]:`, err?.message || err);
