@@ -53,6 +53,11 @@ export const INITIAL_PROFESSORS: Professor[] = [
 ];
 
 
+export const BMF4_CLASS_IDS = {
+  TURMA_A: 'class-bmf4-turmaa',
+  TURMA_B: 'class-bmf4-turmab',
+} as const;
+
 export const INITIAL_CLASSES: ClassGroup[] = [];
 
 export const INITIAL_STUDENTS: Student[] = [];

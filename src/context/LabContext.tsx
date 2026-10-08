@@ -781,22 +781,24 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         try {
           const { data: justData, error: justErr } = await supabase.from('justifications').select('*');
           if (!justErr && Array.isArray(justData) && justData.length > 0) {
-            const mappedJust = justData.map((j: any) => ({
+            const mappedJust: JustificationRequest[] = justData.map((j: any) => ({
               id: j.id,
               studentId: j.student_id || j.studentId,
               studentName: j.student_name || j.studentName,
               studentRa: j.student_ra || j.studentRa,
               classGroupId: j.class_group_id || j.classGroupId,
-              sessionId: j.session_id || j.sessionId,
-              date: j.date,
-              period: j.period,
-              description: j.description,
-              status: j.status,
-              documentNumber: j.doc_number || j.docNumber,
+              sessionId: j.session_id || j.sessionId || '',
+              sessionDate: j.session_date || j.sessionDate || j.date || new Date().toISOString().split('T')[0],
+              period: j.period || 'both',
+              reason: j.reason || 'medical',
+              description: j.description || '',
+              status: j.status || 'pending',
+              documentNumber: j.doc_number || j.docNumber || j.documentNumber,
               attachmentName: j.attachment_name || j.attachmentName,
               attachmentUrl: j.attachment_url || j.attachmentUrl,
-              reviewedAt: j.updated_at,
-              reviewedBy: j.reviewer_name,
+              submittedAt: j.created_at || j.submittedAt || new Date().toISOString(),
+              reviewedAt: j.updated_at || j.reviewedAt,
+              reviewedBy: j.reviewer_name || j.reviewedBy,
             }));
             const merged = mergeJustificationLists(localJustifications.length > 0 ? localJustifications : INITIAL_JUSTIFICATIONS, mappedJust);
             setJustifications(merged);
