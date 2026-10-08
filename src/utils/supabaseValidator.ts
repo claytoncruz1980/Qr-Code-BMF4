@@ -26,106 +26,196 @@ export const validateAndSanitizeRecord = <T extends Record<string, any>>(
   const copy = { ...record } as any;
 
   // 1. Ensure ID is a valid non-empty string
-  if (!copy.id || (typeof copy.id !== 'string' && typeof copy.id !== 'number')) {
+  let id = copy.id;
+  if (!id || (typeof id !== 'string' && typeof id !== 'number')) {
     errors.push(`Missing or invalid 'id' field in table [${table}]`);
-    copy.id = `fallback-${table}-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+    id = `fallback-${table}-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
   } else {
-    copy.id = String(copy.id).trim();
+    id = String(id).trim();
   }
 
-  // 2. Table-specific schema normalizations and property mappings
+  let sanitized: any = { id };
+
+  // 2. Table-specific schema normalizations and property mappings (pure DB columns)
   switch (table) {
-    case 'classes':
-      copy.name = String(copy.name || '').trim() || 'Turma Sem Nome';
-      copy.code = String(copy.code || copy.id).toUpperCase().trim();
-      copy.discipline = String(copy.discipline || 'BMF4');
-      copy.laboratory_room = String(copy.laboratory_room || copy.laboratoryRoom || 'Laboratório de Práticas');
-      copy.total_students = Number(copy.total_students ?? copy.totalStudents ?? 0);
-      copy.professor_id = copy.professor_id ? String(copy.professor_id) : (copy.professorId ? String(copy.professorId) : null);
+    case 'classes': {
+      sanitized = {
+        id,
+        name: String(copy.name || '').trim() || 'Turma Sem Nome',
+        code: String(copy.code || id).toUpperCase().trim(),
+        discipline: String(copy.discipline || 'BMF4'),
+        institution: String(copy.institution || 'UNINOVE MEDICINA'),
+        course: String(copy.course || 'Medicina'),
+        semester: String(copy.semester || '4º Semestre 2026'),
+        laboratory_room: String(copy.laboratory_room || copy.laboratoryRoom || 'Laboratório de Práticas'),
+        professor_name: copy.professor_name || copy.professorName || null,
+        professor_id: copy.professor_id ? String(copy.professor_id) : (copy.professorId ? String(copy.professorId) : null),
+        monitor_name: copy.monitor_name || copy.monitorName || null,
+        schedule: String(copy.schedule || 'Segunda a Sexta, 07:30 - 12:00'),
+        color: String(copy.color || '#0d9488'),
+        total_students: Number(copy.total_students ?? copy.totalStudents ?? 0),
+      };
       break;
+    }
 
-    case 'students':
-      copy.name = String(copy.name || '').trim() || 'Aluno(a) sem Nome';
-      copy.registration_number = String(copy.registration_number || copy.registrationNumber || '').trim().toUpperCase();
-      copy.class_group_id = String(copy.class_group_id || copy.classGroupId || 'class-default');
-      copy.course = String(copy.course || 'Medicina');
-      copy.discipline = String(copy.discipline || 'BMF4');
-      copy.email = String(copy.email || `${copy.registration_number.toLowerCase()}@uni9.edu.br`);
+    case 'students': {
+      const regNum = String(copy.registration_number || copy.registrationNumber || '').trim().toUpperCase();
+      sanitized = {
+        id,
+        name: String(copy.name || '').trim() || 'Aluno(a) sem Nome',
+        registration_number: regNum,
+        email: String(copy.email || `${regNum.toLowerCase() || 'aluno'}@uni9.edu.br`),
+        discipline: String(copy.discipline || 'BMF4'),
+        course: String(copy.course || 'Medicina'),
+        class_group_id: String(copy.class_group_id || copy.classGroupId || 'class-default'),
+        avatar_url: copy.avatar_url || copy.avatar || copy.avatarUrl || null,
+        notes: copy.notes || null,
+        bound_device_id: copy.bound_device_id || copy.boundDeviceId || null,
+        device_bound_at: copy.device_bound_at || copy.deviceBoundAt || null,
+        presences: Number(copy.presences ?? 0),
+        absences: Number(copy.absences ?? 0),
+        lates: Number(copy.lates ?? 0),
+        excused: Number(copy.excused ?? 0),
+        total_classes: Number(copy.total_classes ?? copy.totalClasses ?? 0),
+      };
       break;
+    }
 
-    case 'teachers':
-      copy.name = String(copy.name || '').trim() || 'Professor(a)';
-      copy.email = String(copy.email || `${copy.id || 'prof'}@uni9.edu.br`).trim().toLowerCase();
-      copy.registration_number = String(copy.registration_number || copy.registrationNumber || '').trim();
-      copy.role = String(copy.role || 'professor');
-      copy.discipline = String(copy.discipline || 'BMF4');
-      copy.pin = String(copy.pin || '1234');
-      copy.phone = copy.phone || null;
-      copy.assigned_class_ids = copy.assigned_class_ids || copy.assignedClassIds || [];
-      copy.has_changed_pin = Boolean(copy.has_changed_pin ?? copy.hasChangedPin ?? false);
-      copy.avatar_url = copy.avatar_url || copy.avatar || copy.avatarUrl || null;
+    case 'teachers': {
+      sanitized = {
+        id,
+        name: String(copy.name || '').trim() || 'Professor(a)',
+        email: String(copy.email || `${id || 'prof'}@uni9.edu.br`).trim().toLowerCase(),
+        registration_number: String(copy.registration_number || copy.registrationNumber || '').trim(),
+        discipline: String(copy.discipline || 'BMF4'),
+        pin: String(copy.pin || '1234'),
+        role: String(copy.role || 'professor'),
+        phone: copy.phone || null,
+        assigned_class_ids: Array.isArray(copy.assigned_class_ids || copy.assignedClassIds) ? (copy.assigned_class_ids || copy.assignedClassIds) : [],
+        has_changed_pin: Boolean(copy.has_changed_pin ?? copy.hasChangedPin ?? false),
+        avatar_url: copy.avatar_url || copy.avatar || copy.avatarUrl || null,
+      };
       break;
+    }
 
-    case 'sessions':
-      copy.class_group_id = String(copy.class_group_id || copy.classGroupId || 'class-default');
-      copy.date = String(copy.date || new Date().toISOString().split('T')[0]);
-      copy.discipline = String(copy.discipline || 'BMF4');
-      copy.is_live = Boolean(copy.is_live ?? copy.isLive ?? false);
-      copy.is_locked = Boolean(copy.is_locked ?? copy.isLocked ?? false);
-      copy.active_period = String(copy.active_period || copy.activePeriod || '1');
+    case 'sessions': {
+      sanitized = {
+        id,
+        class_group_id: String(copy.class_group_id || copy.classGroupId || 'class-default'),
+        topic: String(copy.topic || 'Aula BMF4'),
+        date: String(copy.date || new Date().toISOString().split('T')[0]),
+        start_time: copy.start_time || copy.startTime || null,
+        end_time: copy.end_time || copy.endTime || null,
+        is_live: Boolean(copy.is_live ?? copy.isLive ?? true),
+        is_locked: Boolean(copy.is_locked ?? copy.isLocked ?? false),
+        is_paused: Boolean(copy.is_paused ?? copy.isPaused ?? false),
+        active_period: String(copy.active_period || copy.activePeriod || '1'),
+        is_period1_locked: Boolean(copy.is_period1_locked ?? copy.isPeriod1Locked ?? false),
+        is_period2_locked: Boolean(copy.is_period2_locked ?? copy.isPeriod2Locked ?? false),
+        attendance: copy.attendance || {},
+        activity_type: copy.activity_type || copy.activityType || null,
+        activity_category: copy.activity_category || copy.activityCategory || null,
+        lab_location: copy.lab_location || copy.labLocation || null,
+        checkin_code: copy.checkin_code || copy.checkinCode || null,
+        checkin_secret: copy.checkin_secret || copy.checkinSecret || null,
+        version: Number(copy.version ?? 1),
+        professor_id: copy.professor_id || copy.professorId || null,
+        professor_name: copy.professor_name || copy.professorName || null,
+        last_update_timestamp: copy.last_update_timestamp || copy.lastUpdateTimestamp || null,
+        updated_by: copy.updated_by || copy.updatedBy || null,
+      };
       break;
+    }
 
-    case 'attendance_records':
-      copy.session_id = String(copy.session_id || copy.sessionId || '');
-      copy.student_id = String(copy.student_id || copy.studentId || '');
-      copy.class_group_id = String(copy.class_group_id || copy.classGroupId || '');
-      copy.status = String(copy.status || 'absent');
-      copy.period1_status = copy.period1_status || copy.period1Status || null;
-      copy.period2_status = copy.period2_status || copy.period2Status || null;
-      copy.timestamp = copy.timestamp || new Date().toLocaleTimeString();
-      copy.epi_verified = Boolean(copy.epi_verified ?? copy.epiVerified ?? false);
-      copy.checkin_method = String(copy.checkin_method || copy.checkinMethod || 'manual');
+    case 'attendance_records': {
+      sanitized = {
+        id,
+        session_id: String(copy.session_id || copy.sessionId || ''),
+        student_id: String(copy.student_id || copy.studentId || ''),
+        student_name: copy.student_name || copy.studentName || null,
+        student_ra: copy.student_ra || copy.studentRa || null,
+        class_group_id: copy.class_group_id || copy.classGroupId || null,
+        status: String(copy.status || 'absent'),
+        period1_status: copy.period1_status || copy.period1Status || null,
+        period2_status: copy.period2_status || copy.period2Status || null,
+        p1_start_status: copy.p1_start_status || copy.p1StartStatus || null,
+        p1_end_status: copy.p1_end_status || copy.p1EndStatus || null,
+        p2_start_status: copy.p2_start_status || copy.p2StartStatus || null,
+        p2_end_status: copy.p2_end_status || copy.p2EndStatus || null,
+        timestamp: copy.timestamp || null,
+        p1_start_timestamp: copy.p1_start_timestamp || copy.p1StartTimestamp || null,
+        p1_end_timestamp: copy.p1_end_timestamp || copy.p1EndTimestamp || null,
+        p2_start_timestamp: copy.p2_start_timestamp || copy.p2StartTimestamp || null,
+        p2_end_timestamp: copy.p2_end_timestamp || copy.p2EndTimestamp || null,
+        period1_timestamp: copy.period1_timestamp || copy.period1Timestamp || null,
+        period2_timestamp: copy.period2_timestamp || copy.period2Timestamp || null,
+        epi_verified: Boolean(copy.epi_verified ?? copy.epiVerified ?? false),
+        checkin_method: copy.checkin_method || copy.checkinMethod || null,
+        device_id: copy.device_id || copy.deviceId || null,
+        device_model: copy.device_model || copy.deviceModel || null,
+        token_used: copy.token_used || copy.tokenUsed || null,
+        observation: copy.observation || null,
+        justification_reason: copy.justification_reason || copy.justificationReason || null,
+        justification_file_url: copy.justification_file_url || copy.justificationFileUrl || null,
+        justification_file_name: copy.justification_file_name || copy.justificationFileName || null,
+      };
       break;
+    }
 
-    case 'justifications':
-      copy.student_id = String(copy.student_id || copy.studentId || '');
-      copy.student_name = String(copy.student_name || copy.studentName || 'Aluno');
-      copy.student_ra = String(copy.student_ra || copy.studentRa || '');
-      copy.class_group_id = String(copy.class_group_id || copy.classGroupId || '');
-      copy.status = String(copy.status || 'pending');
-      copy.date = String(copy.date || new Date().toISOString().split('T')[0]);
-      copy.period = String(copy.period || 'both');
-      copy.description = String(copy.description || '');
-      copy.doc_number = copy.doc_number || copy.docNumber || copy.documentNumber || null;
-      copy.attachment_name = copy.attachment_name || copy.attachmentName || null;
-      copy.attachment_url = copy.attachment_url || copy.attachmentUrl || null;
+    case 'justifications': {
+      sanitized = {
+        id,
+        student_id: String(copy.student_id || copy.studentId || ''),
+        student_name: copy.student_name || copy.studentName || null,
+        student_ra: copy.student_ra || copy.studentRa || null,
+        class_group_id: copy.class_group_id || copy.classGroupId || null,
+        session_id: copy.session_id || copy.sessionId || null,
+        date: String(copy.date || new Date().toISOString().split('T')[0]),
+        period: String(copy.period || 'both'),
+        category: copy.category || copy.reason || 'medical',
+        doc_number: copy.doc_number || copy.docNumber || copy.documentNumber || null,
+        description: copy.description || '',
+        status: String(copy.status || 'pending'),
+        attachment_name: copy.attachment_name || copy.attachmentName || null,
+        attachment_url: copy.attachment_url || copy.attachmentUrl || null,
+        reviewer_id: copy.reviewer_id || copy.reviewerId || null,
+        reviewer_name: copy.reviewer_name || copy.reviewerName || null,
+        review_notes: copy.review_notes || copy.reviewNotes || null,
+      };
       break;
+    }
 
-    case 'student_grades':
-      copy.student_id = String(copy.student_id || copy.studentId || '');
-      copy.class_group_id = String(copy.class_group_id || copy.classGroupId || '');
-      if (!copy.id || copy.id.startsWith('fallback-')) {
-        copy.id = `${copy.student_id}_${copy.class_group_id}`;
-      }
-      copy.scores = copy.scores || {};
-      copy.substitute_exam_score = copy.substitute_exam_score ?? copy.substituteExamScore ?? null;
-      copy.notes = copy.notes || '';
-      copy.updated_at = copy.updated_at || copy.updatedAt || new Date().toISOString();
+    case 'student_grades': {
+      const studentId = String(copy.student_id || copy.studentId || '');
+      const classGroupId = String(copy.class_group_id || copy.classGroupId || '');
+      const gradeId = (!id || id.startsWith('fallback-')) ? `${studentId}_${classGroupId}` : id;
+      sanitized = {
+        id: gradeId,
+        student_id: studentId,
+        class_group_id: classGroupId,
+        scores: copy.scores || {},
+        substitute_exam_score: copy.substitute_exam_score ?? copy.substituteExamScore ?? null,
+        notes: copy.notes || null,
+      };
       break;
+    }
 
-    case 'app_settings':
-      copy.id = copy.id || 'global_settings';
-      copy.settings_payload = copy.settings_payload || copy.settingsPayload || copy;
-      copy.updated_at = new Date().toISOString();
+    case 'app_settings': {
+      sanitized = {
+        id: id || 'global_settings',
+        settings_payload: copy.settings_payload || copy.settingsPayload || copy,
+      };
       break;
+    }
 
     default:
+      sanitized = copy;
       break;
   }
 
   return {
     isValid: errors.length === 0,
-    sanitizedRecord: copy as T,
+    sanitizedRecord: sanitized as T,
     errors,
   };
 };
