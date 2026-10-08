@@ -55,9 +55,15 @@ export const validateAndSanitizeRecord = <T extends Record<string, any>>(
 
     case 'teachers':
       copy.name = String(copy.name || '').trim() || 'Professor(a)';
-      copy.email = String(copy.email || '').trim().toLowerCase();
+      copy.email = String(copy.email || `${copy.id || 'prof'}@uni9.edu.br`).trim().toLowerCase();
+      copy.registration_number = String(copy.registration_number || copy.registrationNumber || '').trim();
       copy.role = String(copy.role || 'professor');
       copy.discipline = String(copy.discipline || 'BMF4');
+      copy.pin = String(copy.pin || '1234');
+      copy.phone = copy.phone || null;
+      copy.assigned_class_ids = copy.assigned_class_ids || copy.assignedClassIds || [];
+      copy.has_changed_pin = Boolean(copy.has_changed_pin ?? copy.hasChangedPin ?? false);
+      copy.avatar_url = copy.avatar_url || copy.avatar || copy.avatarUrl || null;
       break;
 
     case 'sessions':

@@ -1804,12 +1804,20 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       copy.laboratory_room = copy.laboratory_room || copy.laboratoryRoom;
       copy.total_students = copy.total_students ?? copy.totalStudents;
       copy.professor_id = copy.professor_id || copy.professorId;
+      copy.professor_name = copy.professor_name || copy.professorName;
+      copy.monitor_name = copy.monitor_name || copy.monitorName;
     } else if (table === 'students') {
       copy.registration_number = copy.registration_number || copy.registrationNumber;
       copy.class_group_id = copy.class_group_id || copy.classGroupId;
       copy.attendance_stats = copy.attendance_stats || copy.attendanceStats;
+      copy.avatar_url = copy.avatar_url || copy.avatarUrl || copy.avatar;
+      copy.bound_device_id = copy.bound_device_id || copy.boundDeviceId;
+      copy.device_bound_at = copy.device_bound_at || copy.deviceBoundAt;
     } else if (table === 'teachers') {
-      copy.avatar_url = copy.avatar_url || copy.avatar;
+      copy.registration_number = copy.registration_number || copy.registrationNumber;
+      copy.assigned_class_ids = copy.assigned_class_ids || copy.assignedClassIds;
+      copy.has_changed_pin = copy.has_changed_pin ?? copy.hasChangedPin;
+      copy.avatar_url = copy.avatar_url || copy.avatar || copy.avatarUrl;
     } else if (table === 'sessions') {
       copy.class_group_id = copy.class_group_id || copy.classGroupId;
       copy.start_time = copy.start_time || copy.startTime;
@@ -1819,6 +1827,45 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       copy.is_live = copy.is_live ?? copy.isLive;
       copy.is_locked = copy.is_locked ?? copy.isLocked;
       copy.active_period = copy.active_period || copy.activePeriod;
+      copy.activity_type = copy.activity_type || copy.activityType;
+      copy.activity_category = copy.activity_category || copy.activityCategory;
+      copy.lab_location = copy.lab_location || copy.labLocation;
+      copy.checkin_code = copy.checkin_code || copy.checkinCode;
+      copy.checkin_secret = copy.checkin_secret || copy.checkinSecret;
+      copy.last_update_timestamp = copy.last_update_timestamp || copy.lastUpdateTimestamp;
+      copy.updated_by = copy.updated_by || copy.updatedBy;
+    } else if (table === 'attendance_records') {
+      copy.session_id = copy.session_id || copy.sessionId;
+      copy.student_id = copy.student_id || copy.studentId;
+      copy.student_name = copy.student_name || copy.studentName;
+      copy.student_ra = copy.student_ra || copy.studentRa;
+      copy.class_group_id = copy.class_group_id || copy.classGroupId;
+      copy.period1_status = copy.period1_status || copy.period1Status;
+      copy.period2_status = copy.period2_status || copy.period2Status;
+      copy.epi_verified = copy.epi_verified ?? copy.epiVerified;
+      copy.checkin_method = copy.checkin_method || copy.checkinMethod;
+      copy.device_id = copy.device_id || copy.deviceId;
+      copy.device_model = copy.device_model || copy.deviceModel;
+      copy.token_used = copy.token_used || copy.tokenUsed;
+      copy.justification_reason = copy.justification_reason || copy.justificationReason;
+      copy.justification_file_url = copy.justification_file_url || copy.justificationFileUrl;
+      copy.justification_file_name = copy.justification_file_name || copy.justificationFileName;
+    } else if (table === 'justifications') {
+      copy.student_id = copy.student_id || copy.studentId;
+      copy.student_name = copy.student_name || copy.studentName;
+      copy.student_ra = copy.student_ra || copy.studentRa;
+      copy.class_group_id = copy.class_group_id || copy.classGroupId;
+      copy.session_id = copy.session_id || copy.sessionId;
+      copy.doc_number = copy.doc_number || copy.docNumber || copy.documentNumber;
+      copy.attachment_name = copy.attachment_name || copy.attachmentName;
+      copy.attachment_url = copy.attachment_url || copy.attachmentUrl;
+      copy.reviewer_id = copy.reviewer_id || copy.reviewerId;
+      copy.reviewer_name = copy.reviewer_name || copy.reviewerName;
+      copy.review_notes = copy.review_notes || copy.reviewNotes;
+    } else if (table === 'student_grades') {
+      copy.student_id = copy.student_id || copy.studentId;
+      copy.class_group_id = copy.class_group_id || copy.classGroupId;
+      copy.substitute_exam_score = copy.substitute_exam_score ?? copy.substituteExamScore;
     }
     return copy;
   };
