@@ -2395,19 +2395,22 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
               setProfessors(prev => prev.filter(p => p.id !== delId));
             } else if (payload.new && payload.new.id) {
               const raw = payload.new;
-              const mapped: Professor = {
-                id: raw.id,
-                name: raw.name,
-                email: raw.email,
-                registrationNumber: raw.registration_number,
-                discipline: raw.discipline || 'BMF4',
-                pin: raw.pin || '1234',
-                role: raw.role || 'professor',
-                phone: raw.phone,
-                assignedClassIds: raw.assigned_class_ids || [],
-                hasChangedPin: raw.has_changed_pin || false,
-              };
-              setProfessors(prev => mergeProfessorLists(prev, [mapped], deletedProfessorIdsRef.current));
+              setProfessors(prev => {
+                const existing = prev.find(p => p.id === raw.id);
+                const mapped: Professor = {
+                  id: raw.id,
+                  name: raw.name || existing?.name || 'Professor(a)',
+                  email: raw.email || existing?.email || '',
+                  registrationNumber: raw.registration_number || existing?.registrationNumber || existing?.registration_number || '',
+                  discipline: raw.discipline || existing?.discipline || 'BMF4',
+                  pin: raw.pin || existing?.pin || '1234',
+                  role: raw.role || existing?.role || 'professor',
+                  phone: raw.phone || existing?.phone || '',
+                  assignedClassIds: raw.assigned_class_ids || existing?.assignedClassIds || [],
+                  hasChangedPin: raw.has_changed_pin ?? existing?.hasChangedPin ?? false,
+                };
+                return mergeProfessorLists(prev, [mapped], deletedProfessorIdsRef.current);
+              });
             }
           }
         )
