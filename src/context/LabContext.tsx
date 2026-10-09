@@ -2760,14 +2760,39 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const forceSyncMaster = useCallback(async () => {
     try {
+      // 1. Direct Supabase Parallel Fetch for instant freshness across Vercel / clients
+      const [classesRes, studentsRes, teachersRes, sessionsRes, gradesRes, justRes] = await Promise.all([
+        supabase.from('classes').select('*'),
+        supabase.from('students').select('*'),
+        supabase.from('teachers').select('*'),
+        supabase.from('sessions').select('*'),
+        supabase.from('student_grades').select('*'),
+        supabase.from('justifications').select('*'),
+      ]);
+
+      const cloudState: any = {
+        userMutation: true,
+        classes: !classesRes.error && Array.isArray(classesRes.data) ? classesRes.data : undefined,
+        students: !studentsRes.error && Array.isArray(studentsRes.data) ? studentsRes.data : undefined,
+        professors: !teachersRes.error && Array.isArray(teachersRes.data) ? teachersRes.data : undefined,
+        sessions: !sessionsRes.error && Array.isArray(sessionsRes.data) ? sessionsRes.data : undefined,
+        studentGrades: !gradesRes.error && Array.isArray(gradesRes.data) ? gradesRes.data : undefined,
+        justifications: !justRes.error && Array.isArray(justRes.data) ? justRes.data : undefined,
+        lastUpdated: Date.now(),
+      };
+
+      if (Object.values(cloudState).some(val => Array.isArray(val) && val.length > 0)) {
+        applyServerState(cloudState);
+      }
+
+      // 2. Also fetch API sync state fallback
       const res = await fetch('/api/sync/state?force=1&cache_control=no-cache');
       const data = await res.json();
       if (data.success && data.state) {
         applyServerState({ ...data.state, userMutation: true });
-        return;
       }
     } catch (err) {
-      console.debug('Server sync notice:', err);
+      console.debug('Master sync notice:', err);
     }
   }, [applyServerState]);
 
