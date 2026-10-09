@@ -88,6 +88,33 @@ export async function saveTeacher(
     console.error('❌ [syncService.saveTeacher] Exceção ao salvar professor:', err?.message || err);
     return { success: false, error: err };
   }
+}/**
+ * Remove um professor da tabela 'teachers' do Supabase via ID.
+ */
+export async function deleteTeacher(id: string): Promise<SyncResponse> {
+  try {
+    if (!id) {
+      const err = new Error('ID do professor é obrigatório para exclusão.');
+      console.error('❌ [syncService.deleteTeacher] Erro de validação:', err.message);
+      return { success: false, error: err.message };
+    }
+
+    const { error } = await supabase
+      .from('teachers')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error('❌ [syncService.deleteTeacher] Erro ao excluir professor no Supabase:', error);
+      return { success: false, error };
+    }
+
+    console.log(`🗑️ [syncService.deleteTeacher] Professor ID "${id}" excluído com sucesso do Supabase.`);
+    return { success: true };
+  } catch (err: any) {
+    console.error('❌ [syncService.deleteTeacher] Exceção ao excluir professor:', err?.message || err);
+    return { success: false, error: err };
+  }
 }
 
 /**
