@@ -772,6 +772,18 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             } catch {}
             if (teachersData.length === 0 && merged.length > 0) {
               syncEntityToSupabase('teachers', merged);
+              await supabase.from('teachers').upsert(merged.map(p => ({
+                id: p.id,
+                name: p.name,
+                email: p.email,
+                registration_number: p.registrationNumber,
+                discipline: p.discipline || 'BMF4',
+                pin: p.pin || '1234',
+                role: p.role || 'professor',
+                phone: p.phone || null,
+                assigned_class_ids: p.assignedClassIds || [],
+                has_changed_pin: p.hasChangedPin || false,
+              })), { onConflict: 'id' });
             }
           }
         } catch (e: any) {
