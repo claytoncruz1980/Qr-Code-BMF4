@@ -86,14 +86,7 @@ export const validateAndSanitizeRecord = <T extends Record<string, any>>(
         id,
         name: String(copy.name || '').trim() || 'Professor(a)',
         email: String(copy.email || `${id || 'prof'}@uni9.edu.br`).trim().toLowerCase(),
-        registration_number: String(copy.registration_number || copy.registrationNumber || '').trim(),
-        discipline: String(copy.discipline || 'BMF4'),
-        pin: String(copy.pin || '1234'),
-        role: String(copy.role || 'professor'),
-        phone: copy.phone || null,
-        assigned_class_ids: Array.isArray(copy.assigned_class_ids || copy.assignedClassIds) ? (copy.assigned_class_ids || copy.assignedClassIds) : [],
-        has_changed_pin: Boolean(copy.has_changed_pin ?? copy.hasChangedPin ?? false),
-        avatar_url: copy.avatar_url || copy.avatar || copy.avatarUrl || null,
+        created_at: copy.created_at || new Date().toISOString(),
       };
       break;
     }
