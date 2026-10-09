@@ -237,6 +237,7 @@ export interface JustificationRequest {
   studentId: string;
   studentName?: string;
   studentRa?: string;
+  classGroupId?: string;
   sessionId: string;
   sessionTopic?: string;
   sessionDate: string;

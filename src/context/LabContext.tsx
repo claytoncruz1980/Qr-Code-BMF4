@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useMemo, useRef, useCallback, ReactNode } from 'react';
 import { supabase } from '../lib/supabase';
+import { saveTeacher, updateAttendance, saveStudentGrade } from '../services/syncService';
 import { 
   Student, 
   ClassGroup, 
@@ -4211,8 +4212,37 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       syncSessionVersionToFirestore(targetSessionToSync, nextVersion);
     }
 
-    // Enqueue Outbox event to ensure reliable Firestore sync even during offline / reconnect
+    // Direct synchronization to Supabase via syncService
     const targetStudent = students.find(s => s.id === studentId);
+    updateAttendance({
+      sessionId: activeSession.id,
+      studentId,
+      studentName: targetStudent?.name,
+      studentRa: targetStudent?.registrationNumber,
+      classGroupId: activeSession.classGroupId,
+      status: resolvedOverall,
+      period1Status: newPeriod1,
+      period2Status: newPeriod2,
+      p1StartStatus: newP1Start,
+      p1EndStatus: newP1End,
+      p2StartStatus: newP2Start,
+      p2EndStatus: newP2End,
+      timestamp: timeStr,
+      p1StartTimestamp: newP1StartTime,
+      p1EndTimestamp: newP1EndTime,
+      p2StartTimestamp: newP2StartTime,
+      p2EndTimestamp: newP2EndTime,
+      period1Timestamp: newPeriod1Time,
+      period2Timestamp: newPeriod2Time,
+      epiVerified: (status === 'present' || status === 'late') ? (epiVerified ?? true) : false,
+      checkinMethod: existingRec?.checkinMethod || 'manual',
+      deviceId: existingRec?.deviceId,
+      justificationReason: justificationData?.reason || (status === 'absent' ? undefined : existingRec?.justificationReason),
+      justificationFileUrl: justificationData?.fileUrl || (status === 'absent' ? undefined : existingRec?.justificationFileUrl),
+      justificationFileName: justificationData?.fileName || (status === 'absent' ? undefined : existingRec?.justificationFileName),
+    });
+
+    // Enqueue Outbox event to ensure reliable Firestore sync even during offline / reconnect
     enqueueOutboxItem({
       eventType: status === 'excused' ? 'EXCUSE_STUDENT' : 'RECORD_ATTENDANCE',
       sessionId: activeSession.id,
@@ -5425,6 +5455,7 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     } catch {}
 
     syncEntityToSupabase('teachers', newProf);
+    saveTeacher(newProf);
 
     const newActiveId = (!activeProfessorId || professors.length === 0) ? newProf.id : activeProfessorId;
     if (newActiveId !== activeProfessorId) {
@@ -5461,6 +5492,7 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const targetProf = updatedProfs.find(p => p.id === id);
     if (targetProf) {
       syncEntityToSupabase('teachers', targetProf);
+      saveTeacher(targetProf);
     }
 
     const now = Date.now();
@@ -5615,6 +5647,7 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const targetGradeToSync = updatedGrades.find(g => g.studentId === studentId && g.classGroupId === targetClassId);
     if (targetGradeToSync) {
       syncEntityToSupabase('student_grades', targetGradeToSync);
+      saveStudentGrade(targetGradeToSync);
     }
 
     const now = Date.now();
@@ -5671,6 +5704,7 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const targetSubGradeToSync = updatedGrades.find(g => g.studentId === studentId && g.classGroupId === targetClassId);
     if (targetSubGradeToSync) {
       syncEntityToSupabase('student_grades', targetSubGradeToSync);
+      saveStudentGrade(targetSubGradeToSync);
     }
 
     const now = Date.now();
@@ -5709,6 +5743,7 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const targetNotesGradeToSync = updatedGrades.find(g => g.studentId === studentId && g.classGroupId === targetClassId);
     if (targetNotesGradeToSync) {
       syncEntityToSupabase('student_grades', targetNotesGradeToSync);
+      saveStudentGrade(targetNotesGradeToSync);
     }
 
     const now = Date.now();

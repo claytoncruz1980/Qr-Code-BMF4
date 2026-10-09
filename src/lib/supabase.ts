@@ -55,7 +55,8 @@ export const createSupabaseInstance = (url?: string, key?: string): SupabaseClie
   });
 };
 
-export const supabase = createSupabaseInstance();
+// Instância singleton do cliente Supabase configurada com as variáveis VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY
+export const supabase: SupabaseClient = createSupabaseInstance();
 
 export const saveSupabaseConfig = (url: string, anonKey: string) => {
   if (typeof window !== 'undefined') {
@@ -63,4 +64,6 @@ export const saveSupabaseConfig = (url: string, anonKey: string) => {
     if (anonKey) localStorage.setItem('bmf4_supabase_anon_key', anonKey.trim());
   }
 };
+
+export default supabase;
 
