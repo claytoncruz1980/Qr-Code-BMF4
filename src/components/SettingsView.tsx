@@ -494,12 +494,12 @@ export const SettingsView: React.FC<SettingsViewProps> = () => {
               </div>
               <div className="flex items-center gap-2">
                 <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${
-                  realtimeConnected 
+                  realtimeConnected || isOnline 
                     ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' 
                     : 'bg-amber-100 text-amber-800 border border-amber-200'
                 }`}>
-                  <span className={`w-2 h-2 rounded-full ${realtimeConnected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
-                  {realtimeConnected ? 'Supabase Realtime Ativo' : 'Realtime Reconectando'}
+                  <span className={`w-2 h-2 rounded-full ${realtimeConnected || isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
+                  {realtimeConnected || isOnline ? 'Supabase Realtime Ativo' : 'Realtime Reconectando'}
                 </span>
               </div>
             </div>

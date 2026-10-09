@@ -5300,6 +5300,12 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       localStorage.setItem(STORAGE_PREFIX + 'professors', JSON.stringify(updated));
     } catch {}
 
+    const updatedProf = updated.find(p => p.id === professorId);
+    if (updatedProf) {
+      syncEntityToSupabase('teachers', updatedProf);
+      saveTeacher(updatedProf);
+    }
+
     const now = Date.now();
     setLocalLastUpdated(now);
     broadcastCurrentState({
@@ -5378,6 +5384,9 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     try {
       localStorage.setItem(STORAGE_PREFIX + 'professors', JSON.stringify(updatedProfs));
     } catch {}
+
+    syncEntityToSupabase('teachers', newProf);
+    saveTeacher(newProf);
 
     setActiveProfessorId(newProf.id);
     try {

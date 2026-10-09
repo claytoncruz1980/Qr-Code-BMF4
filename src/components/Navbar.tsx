@@ -111,12 +111,12 @@ export const Navbar: React.FC<NavbarProps> = ({
         title: 'Sincronizando dados em tempo real com o Supabase.'
       };
     }
-    if (realtimeConnected) {
+    if (realtimeConnected || isOnline) {
       return {
         label: 'Supabase Online (Tempo Real)',
         dotColor: 'bg-emerald-400 animate-pulse',
         badgeBg: 'border-emerald-400',
-        title: 'Conectado em tempo real com o Supabase e WebSocket.'
+        title: 'Conectado em tempo real com o Supabase e servidor.'
       };
     }
     return {
