@@ -61,9 +61,7 @@ export async function saveTeacher(
     }
 
     const cleanName = String(teacher.name || 'Professor(a)').trim();
-    const cleanEmail = String(
-      teacher.email || `${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '.')}@uni9.edu.br`
-    ).trim().toLowerCase();
+    const cleanEmail = teacher.email ? String(teacher.email).trim().toLowerCase() : null;
 
     const payload = {
       id: String(teacher.id).trim(),

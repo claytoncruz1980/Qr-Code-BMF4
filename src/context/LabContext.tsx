@@ -5474,11 +5474,12 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const cleanName = profData.name.trim();
     if (!cleanName) return;
 
+    const previousProfessors = [...professors];
     const newProf: Professor = {
       id: `prof-${Date.now()}`,
       name: cleanName,
       registrationNumber: profData.registrationNumber?.trim() || `DOC-${Math.floor(1000 + Math.random() * 9000)}`,
-      email: profData.email?.trim() || `${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '.')}@uni9.edu.br`,
+      email: profData.email?.trim() || '',
       pin: profData.pin?.trim() || '1234',
       password: profData.password?.trim() || profData.pin?.trim() || '1234',
       discipline: profData.discipline?.trim() || 'BMF4 - Bases Morfofuncionais 4',
@@ -5488,14 +5489,25 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       phone: profData.phone?.trim() || '',
       role: profData.role || (professors.length === 0 ? 'admin' : 'professor'),
     };
+
+    // Optimistic UI update
     const updatedProfs = [...professors, newProf];
     setProfessors(updatedProfs);
     try {
       localStorage.setItem(STORAGE_PREFIX + 'professors', JSON.stringify(updatedProfs));
     } catch {}
 
-    syncEntityToSupabase('teachers', newProf);
-    saveTeacher(newProf);
+    // Asynchronous background Supabase sync with error resilience
+    Promise.all([
+      syncEntityToSupabase('teachers', newProf),
+      saveTeacher(newProf)
+    ]).then(([resSync, resSave]) => {
+      if ((resSync && resSync.error) || (resSave && !resSave.success)) {
+        console.warn('⚠️ [Optimistic UI] Supabase sync delayed for addProfessor, will retry on reconnect.');
+      }
+    }).catch(err => {
+      console.error('❌ [Optimistic UI] Background sync error for addProfessor:', err);
+    });
 
     const newActiveId = (!activeProfessorId || professors.length === 0) ? newProf.id : activeProfessorId;
     if (newActiveId !== activeProfessorId) {
@@ -5523,7 +5535,10 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const updateProfessor = (id: string, updates: Partial<Professor>) => {
+    const previousProfessors = [...professors];
     const updatedProfs = professors.map(p => p.id === id ? { ...p, ...updates } : p);
+    
+    // Optimistic UI update
     setProfessors(updatedProfs);
     try {
       localStorage.setItem(STORAGE_PREFIX + 'professors', JSON.stringify(updatedProfs));
@@ -5531,8 +5546,16 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     const targetProf = updatedProfs.find(p => p.id === id);
     if (targetProf) {
-      syncEntityToSupabase('teachers', targetProf);
-      saveTeacher(targetProf);
+      Promise.all([
+        syncEntityToSupabase('teachers', targetProf),
+        saveTeacher(targetProf)
+      ]).then(([resSync, resSave]) => {
+        if ((resSync && resSync.error) || (resSave && !resSave.success)) {
+          console.warn('⚠️ [Optimistic UI] Supabase sync delayed for updateProfessor.');
+        }
+      }).catch(err => {
+        console.error('❌ [Optimistic UI] Background sync error for updateProfessor:', err);
+      });
     }
 
     const now = Date.now();
@@ -5919,13 +5942,22 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       lates: 0,
       excused: 0,
     };
+    
+    // Optimistic UI update
     const updatedStudents = [newStudent, ...students];
     setStudents(updatedStudents);
     try {
       localStorage.setItem(STORAGE_PREFIX + 'students', JSON.stringify(updatedStudents));
     } catch {}
 
-    syncEntityToSupabase('students', newStudent);
+    // Asynchronous background Supabase sync with error resilience
+    syncEntityToSupabase('students', newStudent).then(res => {
+      if (res && res.error) {
+        console.warn('⚠️ [Optimistic UI] Supabase sync delayed for addStudent.');
+      }
+    }).catch(err => {
+      console.error('❌ [Optimistic UI] Background sync error for addStudent:', err);
+    });
 
     const now = Date.now();
     setLocalLastUpdated(now);
@@ -5946,6 +5978,8 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const updateStudent = (id: string, updates: Partial<Student>) => {
     const updatedStudents = students.map(s => s.id === id ? { ...s, ...updates } : s);
+    
+    // Optimistic UI update
     setStudents(updatedStudents);
     try {
       localStorage.setItem(STORAGE_PREFIX + 'students', JSON.stringify(updatedStudents));
@@ -5953,7 +5987,13 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     const targetStudent = updatedStudents.find(s => s.id === id);
     if (targetStudent) {
-      syncEntityToSupabase('students', targetStudent);
+      syncEntityToSupabase('students', targetStudent).then(res => {
+        if (res && res.error) {
+          console.warn('⚠️ [Optimistic UI] Supabase sync delayed for updateStudent.');
+        }
+      }).catch(err => {
+        console.error('❌ [Optimistic UI] Background sync error for updateStudent:', err);
+      });
     }
 
     const now = Date.now();

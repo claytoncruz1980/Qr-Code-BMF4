@@ -85,7 +85,7 @@ export const validateAndSanitizeRecord = <T extends Record<string, any>>(
       sanitized = {
         id,
         name: String(copy.name || '').trim() || 'Professor(a)',
-        email: String(copy.email || `${id || 'prof'}@uni9.edu.br`).trim().toLowerCase(),
+        email: copy.email ? String(copy.email).trim().toLowerCase() : null,
         created_at: copy.created_at || new Date().toISOString(),
       };
       break;
