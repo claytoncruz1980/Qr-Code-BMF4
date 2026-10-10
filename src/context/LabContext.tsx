@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useMemo, useRef, useCallback, ReactNode } from 'react';
 import { supabase } from '../lib/supabase';
-import { saveTeacher, deleteTeacher, updateAttendance, saveStudentGrade } from '../services/syncService';
+import { saveTeacher, deleteTeacher, saveClass, deleteClass, updateAttendance, saveStudentGrade } from '../services/syncService';
 import { 
   Student, 
   ClassGroup, 
@@ -6403,6 +6403,7 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     } catch {}
 
     syncEntityToSupabase('classes', newClass);
+    saveClass(newClass);
 
     setSelectedClassId(classId);
     try {
@@ -6468,6 +6469,7 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const targetClass = updatedClasses.find(c => c.id === id);
     if (targetClass) {
       syncEntityToSupabase('classes', targetClass);
+      saveClass(targetClass);
     }
 
     const now = Date.now();
@@ -6500,6 +6502,7 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
 
     deleteEntityFromSupabase('classes', id);
+    deleteClass(id);
 
     const newDeletedClassIds = Array.from(new Set([...deletedClassIdsRef.current, id]));
     setDeletedClassIds(newDeletedClassIds);

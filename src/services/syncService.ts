@@ -382,6 +382,35 @@ export async function saveClass(classGroup: Partial<ClassGroup> & { id: string; 
 }
 
 /**
+ * Remove uma turma da tabela 'classes' do Supabase via ID.
+ */
+export async function deleteClass(id: string): Promise<SyncResponse> {
+  try {
+    if (!id) {
+      const err = new Error('ID da turma é obrigatório para exclusão.');
+      console.error('❌ [syncService.deleteClass] Erro de validação:', err.message);
+      return { success: false, error: err.message };
+    }
+
+    const { error } = await supabase
+      .from('classes')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error('❌ [syncService.deleteClass] Erro ao excluir turma no Supabase:', error);
+      return { success: false, error };
+    }
+
+    console.log(`🗑️ [syncService.deleteClass] Turma ID "${id}" excluída com sucesso do Supabase.`);
+    return { success: true };
+  } catch (err: any) {
+    console.error('❌ [syncService.deleteClass] Exceção ao excluir turma:', err?.message || err);
+    return { success: false, error: err };
+  }
+}
+
+/**
  * Salva ou atualiza um aluno na tabela 'students' do Supabase via upsert.
  */
 export async function saveStudent(student: Partial<Student> & { id: string; name?: string; registrationNumber?: string }): Promise<SyncResponse> {
