@@ -61,13 +61,21 @@ export async function saveTeacher(
     }
 
     const cleanName = String(teacher.name || 'Professor(a)').trim();
-    const cleanEmail = teacher.email ? String(teacher.email).trim().toLowerCase() : null;
+    const cleanEmail = teacher.email ? String(teacher.email).trim().toLowerCase() : '';
 
     const payload = {
       id: String(teacher.id).trim(),
       name: cleanName,
       email: cleanEmail,
+      registration_number: teacher.registrationNumber || (teacher as any).registration_number || null,
+      discipline: teacher.discipline || 'BMF4 - Bases Morfofuncionais 4',
+      pin: teacher.pin || '1234',
+      role: teacher.role || 'professor',
+      phone: teacher.phone || null,
+      assigned_class_ids: teacher.assignedClassIds || (teacher as any).assigned_class_ids || [],
+      has_changed_pin: Boolean(teacher.hasChangedPin ?? (teacher as any).has_changed_pin ?? false),
       created_at: (teacher as any).created_at || new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     };
 
     const { data, error } = await supabase
