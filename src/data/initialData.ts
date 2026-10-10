@@ -25,32 +25,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   strictDeviceBinding: true,
 };
 
-export const INITIAL_PROFESSORS: Professor[] = [
-  {
-    id: 'prof-admin-1',
-    name: 'Prof. Dr. Juliano Pereira (Admin)',
-    registrationNumber: 'DOC-1001',
-    email: 'juliano.pereira@uni9.edu.br',
-    pin: '1234',
-    discipline: 'BMF4 - Bases Morfofuncionais 4',
-    assignedClassIds: [],
-    role: 'admin',
-    phone: '(11) 98765-4321',
-    hasChangedPin: false,
-  },
-  {
-    id: 'prof-docente-2',
-    name: 'Dra. Carolina Mendes',
-    registrationNumber: 'DOC-1002',
-    email: 'carolina.mendes@uni9.edu.br',
-    pin: '1234',
-    discipline: 'BMF4 - Bases Morfofuncionais 4',
-    assignedClassIds: [],
-    role: 'professor',
-    phone: '(11) 98765-4322',
-    hasChangedPin: false,
-  }
-];
+export const INITIAL_PROFESSORS: Professor[] = [];
 
 
 export const BMF4_CLASS_IDS = {

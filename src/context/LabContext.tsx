@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useMemo, useRef, useCallback, ReactNode } from 'react';
 import { supabase } from '../lib/supabase';
-import { saveTeacher, updateAttendance, saveStudentGrade } from '../services/syncService';
+import { saveTeacher, deleteTeacher, updateAttendance, saveStudentGrade } from '../services/syncService';
 import { 
   Student, 
   ClassGroup, 
@@ -963,24 +963,15 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const saved = localStorage.getItem(STORAGE_PREFIX + 'professors');
       const backup = localStorage.getItem('bmf4_master_backup_professors');
       if (saved) parsed = JSON.parse(saved);
-      if ((!Array.isArray(parsed) || parsed.length === 0) && backup) {
-        parsed = JSON.parse(backup);
-      }
+      else if (backup) parsed = JSON.parse(backup);
     } catch {}
-
-    if (!Array.isArray(parsed) || parsed.length === 0) {
-      parsed = INITIAL_PROFESSORS;
-    }
 
     const savedDeletedProfs = localStorage.getItem(STORAGE_PREFIX + 'deleted_professor_ids');
     const deletedProfList: string[] = savedDeletedProfs ? JSON.parse(savedDeletedProfs) : [];
     const delProfSet = new Set(deletedProfList);
-    parsed = (parsed || []).filter(p => p && p.id && !delProfSet.has(p.id));
-    if (parsed.length === 0) {
-      parsed = INITIAL_PROFESSORS;
-    }
+    parsed = (Array.isArray(parsed) ? parsed : []).filter(p => p && p.id && !delProfSet.has(p.id));
 
-    // Ensure an Administrator exists among current professors
+    // Ensure an Administrator exists among current professors if list is non-empty
     let adminCandidate = parsed.find(p => p.role === 'admin') || parsed.find(p => p.name.toLowerCase().includes('juliano'));
     if (adminCandidate) {
       adminCandidate.role = 'admin';
@@ -5562,14 +5553,6 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const deleteProfessor = (id: string): { success: boolean; message: string } => {
-    if (professors.length <= 1) {
-      playBeep('alert');
-      return {
-        success: false,
-        message: 'Não é permitido excluir o único docente cadastrado no sistema.'
-      };
-    }
-
     // Check if professor has an active live session
     const hasLiveSession = sessions.some(s => s && s.professorId === id && s.isLive && !s.isLocked);
     if (hasLiveSession) {
@@ -5587,6 +5570,7 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     } catch {}
 
     deleteEntityFromSupabase('teachers', id);
+    deleteTeacher(id);
 
     const newDeletedProfIds = Array.from(new Set([...deletedProfessorIdsRef.current, id]));
     setDeletedProfessorIds(newDeletedProfIds);
